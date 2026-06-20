@@ -673,7 +673,7 @@ app.post('/api/posts/:id/like', async (req, res) => {
 app.post('/api/posts/:id/comments', async (req, res) => {
     try {
         const ip = getClientIP(req);
-        if (!checkActionLimit(ip, 'comment', 10, 60000)) {
+        if (!checkActionLimit(ip, 'comment', 5, 60000)) {
             return res.status(429).json({ error: 'Слишком много комментариев, подожди' });
         }
 
@@ -682,17 +682,35 @@ app.post('/api/posts/:id/comments', async (req, res) => {
             return res.status(400).json({ error: 'Invalid comment' });
         }
         const commentText = text.trim().substring(0, 500);
+        if (commentText.length < 1) {
+            return res.status(400).json({ error: 'Слишком короткий комментарий' });
+        }
         if (await containsBanWords(commentText)) {
             return res.status(403).json({ error: 'Forbidden words' });
         }
         const posts = await getPosts();
         const post = posts.find(p => p.id === req.params.id);
         if (!post) return res.status(404).json({ error: 'Post not found' });
+
+        const recent = (post.comments || []).filter(c =>
+            c.ip === ip && Date.now() - new Date(c.date).getTime() < 15000
+        );
+        if (recent.length >= 2) {
+            return res.status(429).json({ error: 'Подожди 15 секунд между комментариями' });
+        }
+
+        const ipCommentCount = (await kv.get('commentCount:' + ip)) || 0;
+        if (ipCommentCount >= 100) {
+            return res.status(403).json({ error: 'Лимит комментариев исчерпан' });
+        }
+        await kv.set('commentCount:' + ip, ipCommentCount + 1);
+
         if (!post.comments) post.comments = [];
         post.comments.push({
             id: Date.now().toString(),
             text: sanitize(commentText),
-            date: new Date().toUTCString()
+            date: new Date().toUTCString(),
+            ip
         });
         await kv.set('posts', posts.slice(0, 500));
         res.status(201).json(post.comments);
