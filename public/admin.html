@@ -37,11 +37,16 @@
         .post-item .info, .ban-item .info { flex: 1; }
         .post-item .title { font-size: 16px; font-weight: 300; color: var(--accent); }
         .post-item .meta { font-size: 12px; color: #666; margin-top: 4px; word-break: break-all; }
-        .device-id { font-family: 'Consolas', monospace; font-size: 10px; color: #e3a87e; }
+        .device-id { font-family: 'Consolas', monospace; font-size: 10px; color: #e3a87e; word-break: break-all; }
+        .label-badge { display: inline-block; font-size: 10px; padding: 1px 6px; margin: 1px 2px; border-radius: 0; font-family: 'Consolas', monospace; letter-spacing: 0.5px; vertical-align: middle; cursor: default; }
+        .label-badge.ip { background: #1a1a2e; color: #7ec8e3; border: 1px solid #2a3a5e; }
+        .label-badge.device { background: #2e1a1a; color: #e3a87e; border: 1px solid #5e2a2a; word-break: break-all; max-width: 180px; }
+        .quick-ban-btn { background: none; border: none; color: #e51400; cursor: pointer; font-size: 13px; padding: 0 2px 0 0; vertical-align: middle; opacity: 0.6; transition: opacity 0.2s; line-height: 1; }
+        .quick-ban-btn:hover { opacity: 1; }
         .ban-item .ip { font-size: 14px; color: var(--accent); font-weight: 300; }
         .ban-item .reason { font-size: 12px; color: #999; margin-top: 4px; }
         .del-btn, .unban-btn { background: none; border: 1px solid #e51400; color: #e51400; padding: 4px 12px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
-        .danger-zone { border: 2px solid #e51400; padding: 20px; margin-top: 30px; background: #0a0505; }
+        .danger-zone { border: 2px solid #e51400; padding: 20px; margin-top: 0; background: #0a0505; }
         .danger-zone h4 { color: #e51400; font-size: 18px; font-weight: 200; text-transform: lowercase; margin-bottom: 12px; }
         .danger-zone .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
         .danger-btn { background: #e51400; border: 1px solid #e51400; color: white; padding: 8px 16px; font-size: 13px; cursor: pointer; font-family: inherit; text-transform: lowercase; transition: all 0.2s; }
@@ -217,7 +222,7 @@
                     <div class="post-item">
                         <div class="info">
                             <div class="title">${p.title || 'без заголовка'}</div>
-                            <div class="meta">${p.text}… &middot; ${new Date(p.date).toLocaleDateString('ru')} &middot; ❤ ${p.likes} &middot; 💬 ${p.commentsCount} ${p.ip ? ' &middot; 🌐 ' + p.ip : ''} ${p.deviceId ? ' <span class="device-id">📱 ' + p.deviceId + '</span>' : ''}</div>
+                            <div class="meta">${p.text}… &middot; ${new Date(p.date).toLocaleDateString('ru')} &middot; ❤ ${p.likes} &middot; 💬 ${p.commentsCount} ${p.ip ? '<span class="label-badge ip" title="IP">' + p.ip + '</span><button class="quick-ban-btn" data-ip="' + p.ip + '" title="забанить IP">🔨</button>' : ''} ${p.deviceId ? '<span class="label-badge device" title="deviceId">' + p.deviceId + '</span><button class="quick-ban-btn" data-device="' + p.deviceId + '" title="забанить device">🔨</button>' : ''}</div>
                         </div>
                         <button class="del-btn" data-id="${p.id}">удалить</button>
                     </div>
@@ -226,6 +231,18 @@
                     btn.addEventListener('click', () => {
                         if (!confirm('Удалить пост?')) return;
                         api('/api/admin/posts/' + btn.dataset.id, { method: 'DELETE' }).then(() => { loadPosts(); loadStats(); });
+                    });
+                });
+                el.querySelectorAll('.quick-ban-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const ip = btn.dataset.ip;
+                        const device = btn.dataset.device;
+                        if (ip && !confirm('Забанить IP ' + ip + ' на 24ч?')) return;
+                        if (device && !confirm('Забанить device ' + device.substring(0, 30) + '… на 24ч?')) return;
+                        const duration = 86400000;
+                        const until = Date.now() + duration;
+                        if (ip) api('/api/admin/ban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip, reason: 'быстрый бан из админки', until }) }).then(() => loadBans());
+                        if (device) api('/api/admin/ban-device', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: device, reason: 'быстрый бан из админки', until }) }).then(() => loadDeviceBans());
                     });
                 });
             }).catch(() => { el.innerHTML = '<p style="color:#e51400;">ошибка загрузки</p>'; });
