@@ -1,0 +1,1 @@
+﻿{"rewrites":[{"source":"/rss","destination":"/api/rss"},{"source":"/api/(.*)","destination":"/api/index"}]}
