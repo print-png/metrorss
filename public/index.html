@@ -52,6 +52,7 @@
     <div id="feed"></div>
     <script>
         const API = "/api/posts";
+        const RSS = "/rss";
         async function postNews() {
             const titleEl = document.getElementById('t');
             const textEl = document.getElementById('d');
@@ -65,13 +66,13 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ title: titleEl.value, text: textEl.value })
                 });
-                if (!res.ok) throw new Error('Сервер ответил ошибкой: ' + res.status);
-                const data = await res.json();
-                if (data.error) { alert(data.error); return; }
-                titleEl.value = '';
-                textEl.value = '';
-                await loadNews();
-            } catch (e) {
+            if (!res.ok) throw new Error('Сервер ответил ошибкой: ' + res.status);
+            const data = await res.json();
+            if (data.error) { alert(data.error); return; }
+            titleEl.value = '';
+            textEl.value = '';
+            await loadNews();
+        } catch (e) {
                 alert('Ошибка при публикации: ' + e.message);
             } finally {
                 btn.disabled = false;
@@ -82,15 +83,17 @@
             const feed = document.getElementById('feed');
             feed.innerHTML = '<img class="loader-gif" src="https://media.tenor.com/ptkoPmx8XAkAAAAi/windows-loading.gif">';
             try {
-                const res = await fetch(API);
+                const res = await fetch(RSS);
                 if (!res.ok) throw new Error('Ошибка сервера (' + res.status + ')');
-                const data = await res.json();
-                if (!Array.isArray(data)) throw new Error('Данные пришли не в виде списка.');
-                if (data.length === 0) { feed.innerHTML = '<p style="color:#666;font-style:italic;font-weight:300;">лента новостей пуста.</p>'; return; }
-                feed.innerHTML = data.map((p, i) => {
-                    const cleanTitle = p && p.title ? String(p.title).toLowerCase() : 'без заголовка';
-                    const cleanText = p && p.text ? String(p.text) : '';
-                    return '<div class="post" style="animation-delay:' + (i*0.05) + 's"><h2>' + cleanTitle + '</h2><p>' + cleanText + '</p></div>';
+                const xmlText = await res.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+                const items = xmlDoc.querySelectorAll("item");
+                if (items.length === 0) { feed.innerHTML = '<p style="color:#666;font-style:italic;font-weight:300;">лента новостей пуста.</p>'; return; }
+                feed.innerHTML = Array.from(items).map((item, i) => {
+                    const title = item.querySelector("title")?.textContent?.toLowerCase() || 'без заголовка';
+                    const text = item.querySelector("description")?.textContent || '';
+                    return '<div class="post" style="animation-delay:' + (i*0.05) + 's"><h2>' + title + '</h2><p>' + text + '</p></div>';
                 }).join('');
             } catch (e) {
                 feed.innerHTML = '<p style="color:#e51400;font-weight:300;">не удалось загрузить ленту: ' + e.message + '</p>';
