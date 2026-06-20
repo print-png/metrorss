@@ -67,10 +67,6 @@ async function getPosts() {
     }
 }
 
-function getClientIP(req) {
-    return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
-}
-
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'mR55_2026!Admin#Secure';
 
 function adminAuth(req, res, next) {
@@ -87,6 +83,21 @@ function adminAuth(req, res, next) {
     }
     next();
 }
+
+// --- IP BAN MIDDLEWARE ---
+
+app.use(async (req, res, next) => {
+    if (req.path.startsWith('/api/admin')) return next();
+    try {
+        const blockedIPs = (await kv.get('blockedIPs')) || {};
+        const ip = getClientIP(req);
+        const ban = blockedIPs[ip];
+        if (ban && ban.until > Date.now()) {
+            return res.status(403).json({ error: 'Your IP is banned', reason: ban.reason || undefined });
+        }
+    } catch (e) {}
+    next();
+});
 
 // --- ADMIN ROUTES ---
 
