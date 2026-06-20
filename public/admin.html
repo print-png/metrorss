@@ -78,6 +78,14 @@
             <div class="ban-form">
                 <input id="ban-ip" placeholder="IP адрес">
                 <input id="ban-reason" placeholder="причина (опционально)">
+                <select id="ban-duration" style="background:#111;color:#fff;border:1px solid #333;padding:8px 12px;font-size:13px;font-family:inherit;min-width:80px;">
+                    <option value="3600000">1 час</option>
+                    <option value="21600000">6 часов</option>
+                    <option value="86400000" selected>24 часа</option>
+                    <option value="259200000">3 дня</option>
+                    <option value="604800000">7 дней</option>
+                    <option value="0">навсегда</option>
+                </select>
                 <button id="ban-btn">забанить</button>
             </div>
             <div id="bans-list"></div>
@@ -192,11 +200,12 @@
                 if (!keys.length) { el.innerHTML = '<p style="color:#666;">банов нет</p>'; return; }
                 el.innerHTML = keys.map(ip => {
                     const b = bans[ip];
+                    const untilStr = b.until && b.until !== Infinity ? 'до ' + new Date(b.until).toLocaleString('ru') : 'навсегда';
                     return `
                         <div class="ban-item">
                             <div class="info">
                                 <div class="ip">${ip}</div>
-                                <div class="reason">${b.reason || 'без причины'} &middot; до ${new Date(b.until).toLocaleDateString('ru')}</div>
+                                <div class="reason">${b.reason || 'без причины'} &middot; ${untilStr}</div>
                             </div>
                             <button class="unban-btn" data-ip="${ip}">разбанить</button>
                         </div>
@@ -213,8 +222,10 @@
         document.getElementById('ban-btn').addEventListener('click', () => {
             const ip = document.getElementById('ban-ip').value.trim();
             const reason = document.getElementById('ban-reason').value.trim();
+            const dur = parseInt(document.getElementById('ban-duration').value);
             if (!ip) return;
-            api('/api/admin/ban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip, reason }) })
+            const until = dur > 0 ? Date.now() + dur : 0;
+            api('/api/admin/ban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip, reason, until }) })
                 .then(() => { document.getElementById('ban-ip').value = ''; document.getElementById('ban-reason').value = ''; loadBans(); loadStats(); });
         });
 
