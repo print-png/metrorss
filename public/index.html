@@ -58,7 +58,7 @@
         .tab-btn { background: none; border: none; color: #666; padding: 10px 20px; font-size: 15px; font-family: inherit; font-weight: 300; cursor: pointer; text-transform: lowercase; transition: all 0.2s; border-bottom: 2px solid transparent; margin-bottom: -2px; }
         .tab-btn:hover { color: #aaa; }
         .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
-        #captcha-input { width: 80px; margin: 0; padding: 6px 10px; font-size: 14px; }
+        #captcha-input { width: 120px; margin: 0; padding: 6px 10px; font-size: 14px; }
         #captcha-box input:focus { border-color: var(--accent); }
     </style>
 </head>
@@ -77,7 +77,7 @@
         <div id="captcha-box" style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <span style="color:#666;font-size:13px;text-transform:uppercase;letter-spacing:1px;">капча</span>
             <span id="captcha-question" style="color:#aaa;font-weight:300;"></span>
-            <input id="captcha-input" placeholder="ответ" style="width:80px;margin:0;padding:6px 10px;font-size:14px;">
+            <input id="captcha-input" placeholder="..." style="width:120px;margin:0;padding:6px 10px;font-size:14px;">
             <input id="captcha-token" type="hidden">
         </div>
     </div>
