@@ -6,14 +6,81 @@ function hashStr(s) {
     return Math.abs(h).toString(36);
 }
 
+function getCanvasFP() {
+    try {
+        const c = document.createElement('canvas');
+        c.width = 256; c.height = 128;
+        const ctx = c.getContext('2d');
+        ctx.textBaseline = 'top';
+        ctx.font = '14px Arial';
+        ctx.fillStyle = '#f60';
+        ctx.fillRect(10, 10, 60, 60);
+        ctx.fillStyle = '#069';
+        ctx.fillText('metrorss', 5, 40);
+        ctx.fillStyle = '#444';
+        ctx.font = '12px monospace';
+        ctx.fillText(navigator.userAgent.slice(-8), 5, 70);
+        return hashStr(c.toDataURL());
+    } catch(e) { return ''; }
+}
+
+function getWebGLFP() {
+    try {
+        const c = document.createElement('canvas');
+        const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+        if (!gl) return '';
+        const ext = gl.getExtension('WEBGL_debug_renderer_info');
+        if (!ext) return '';
+        return hashStr(gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) + '|' + gl.getParameter(ext.UNMASKED_RENDERER_WEBGL));
+    } catch(e) { return ''; }
+}
+
+function getAudioFP() {
+    try {
+        const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 44100, 44100);
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.value = 1e4;
+        const comp = ctx.createDynamicsCompressor();
+        comp.threshold.value = -50;
+        comp.knee.value = 40;
+        comp.ratio.value = 12;
+        osc.connect(comp);
+        comp.connect(ctx.destination);
+        osc.start(0);
+        return ctx.startRendering().then(buf => hashStr(buf.getChannelData(0).slice(0, 1000).join('|')))
+            .catch(() => '');
+    } catch(e) { return Promise.resolve(''); }
+}
+
+function getExtraFP() {
+    const parts = [
+        navigator.platform,
+        navigator.hardwareConcurrency,
+        navigator.deviceMemory || '',
+        navigator.maxTouchPoints,
+        navigator.languages ? navigator.languages.join(',') : '',
+        getCanvasFP(),
+        getWebGLFP()
+    ];
+    return parts.join('|');
+}
+
 function getDeviceID() {
-    let id = localStorage.getItem('_did') || sessionStorage.getItem('_did');
+    let id = localStorage.getItem('_did') || sessionStorage.getItem('_did') || getCookie('_did');
     if (!id) {
-        const fp = [navigator.userAgent, screen.width + 'x' + screen.height, screen.colorDepth, navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|');
-        id = 'd_' + hashStr(fp);
+        const extra = getExtraFP();
+        const base = [navigator.userAgent, screen.width + 'x' + screen.height, screen.colorDepth, navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|');
+        id = 'd_' + hashStr(base + '|' + extra);
     }
+    saveDeviceID(id);
+    return id;
+}
+
+function saveDeviceID(id) {
     try { localStorage.setItem('_did', id); } catch(e) {}
     try { sessionStorage.setItem('_did', id); } catch(e) {}
+    try { setCookie('_did', id, 365); } catch(e) {}
     try {
         const req = indexedDB.open('_did_db', 1);
         req.onupgradeneeded = () => req.result.createObjectStore('d', { keyPath: 'k' });
@@ -25,7 +92,22 @@ function getDeviceID() {
             };
         };
     } catch(e) {}
-    return id;
+    getAudioFP().then(audioFP => {
+        if (!audioFP) return;
+        const enhanced = 'd_' + hashStr(id.slice(2) + '|' + audioFP);
+        try { localStorage.setItem('_did_enh', enhanced); } catch(e) {}
+    });
+}
+
+function getCookie(n) {
+    const m = document.cookie.match('(^|;)\\s*' + n + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+}
+
+function setCookie(n, v, days) {
+    const d = new Date();
+    d.setTime(d.getTime() + days * 864e5);
+    document.cookie = n + '=' + v + '; expires=' + d.toUTCString() + '; path=/; SameSite=Lax';
 }
 
 const origFetch = window.fetch;
