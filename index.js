@@ -68,8 +68,6 @@ async function getPosts() {
 }
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'mR55_2026!Admin#Secure';
-const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 
 // --- RATE LIMITER (in-memory) ---
 
@@ -117,29 +115,6 @@ async function adminAuth(req, res, next) {
     }
 }
 
-async function sendCodeEmail(code) {
-    if (!RESEND_API_KEY || !ADMIN_EMAIL) {
-        console.log('Email not configured, code:', code);
-        return true;
-    }
-    try {
-        const res = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + RESEND_API_KEY, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                from: 'metroRSS <noreply@' + ADMIN_EMAIL.split('@')[1] + '>',
-                to: ADMIN_EMAIL,
-                subject: 'Код входа в админку metroRSS',
-                html: '<p>Ваш код для входа:</p><h2 style="color:#744da9;">' + code + '</h2><p>Код действует 5 минут.</p>'
-            })
-        });
-        return res.ok;
-    } catch (e) {
-        console.error('Email send failed:', e);
-        return false;
-    }
-}
-
 // --- IP BAN MIDDLEWARE ---
 
 app.use(async (req, res, next) => {
@@ -166,55 +141,12 @@ app.post('/api/admin/login', async (req, res) => {
         const ip = getClientIP(req);
         if (!checkRateLimit(ip)) return res.status(429).json({ error: 'Слишком много попыток, подождите' });
 
-        const authorizedIPs = (await kv.get('authorizedIPs')) || {};
-
-        if (authorizedIPs[ip]) {
-            const token = randomToken();
-            await kv.set('session:' + token, { ip, at: Date.now() }, { ex: 86400 });
-            return res.json({ token, newIP: false });
-        }
-
-        const code = String(Math.floor(100000 + Math.random() * 900000));
-        const codes = (await kv.get('loginCodes')) || {};
-        codes[ip] = { code, expires: Date.now() + 300000 };
-        await kv.set('loginCodes', codes);
-
-        const emailSent = await sendCodeEmail(code);
-        if (!emailSent && !ADMIN_EMAIL) {
-            return res.json({ needsCode: true, debugCode: code });
-        }
-
-        res.json({ needsCode: true });
-    } catch (e) {
-        res.status(500).json({ error: 'Login failed' });
-    }
-});
-
-app.post('/api/admin/verify', async (req, res) => {
-    try {
-        const { code } = req.body;
-        if (!code) return res.status(400).json({ error: 'Введите код' });
-
-        const ip = getClientIP(req);
-        const codes = (await kv.get('loginCodes')) || {};
-        const entry = codes[ip];
-
-        if (!entry || entry.code !== code) return res.status(403).json({ error: 'Неверный код' });
-        if (Date.now() > entry.expires) return res.status(403).json({ error: 'Код истек' });
-
-        delete codes[ip];
-        await kv.set('loginCodes', codes);
-
-        const authorizedIPs = (await kv.get('authorizedIPs')) || {};
-        authorizedIPs[ip] = Date.now();
-        await kv.set('authorizedIPs', authorizedIPs);
-
         const token = randomToken();
         await kv.set('session:' + token, { ip, at: Date.now() }, { ex: 86400 });
 
         res.json({ token });
     } catch (e) {
-        res.status(500).json({ error: 'Verify failed' });
+        res.status(500).json({ error: 'Login failed' });
     }
 });
 

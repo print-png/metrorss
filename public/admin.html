@@ -23,8 +23,6 @@
         .login-btn:hover { background: transparent; color: var(--accent); }
         .login-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .login-error { color: #e51400; font-size: 13px; margin-top: 10px; display: none; }
-        .login-info { color: #999; font-size: 13px; margin-top: 10px; display: none; }
-        .code-step { display: none; }
         .dashboard { display: none; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 30px; }
         .stat-card { border: 2px solid var(--accent); padding: 20px; background: #0a0a0a; text-align: center; }
@@ -58,19 +56,10 @@
     </div>
 
     <div class="login-box" id="login-box">
-        <div id="pass-step">
-            <h3>вход</h3>
-            <input id="login-pass" type="password" placeholder="пароль">
-            <button class="login-btn" id="login-btn">войти</button>
-            <div class="login-error" id="login-error"></div>
-        </div>
-        <div class="code-step" id="code-step">
-            <h3>код из почты</h3>
-            <p style="color:#999;font-size:13px;margin-bottom:15px;">Код отправлен на почту админа</p>
-            <input id="login-code" type="text" placeholder="6 цифр" maxlength="6">
-            <button class="login-btn" id="verify-btn">подтвердить</button>
-            <div class="login-error" id="code-error"></div>
-        </div>
+        <h3>вход</h3>
+        <input id="login-pass" type="password" placeholder="пароль">
+        <button class="login-btn" id="login-btn">войти</button>
+        <div class="login-error" id="login-error"></div>
     </div>
 
     <div class="dashboard" id="dashboard">
@@ -117,8 +106,6 @@
 
         document.getElementById('login-btn').addEventListener('click', login);
         document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
-        document.getElementById('verify-btn').addEventListener('click', verifyCode);
-        document.getElementById('login-code').addEventListener('keydown', e => { if (e.key === 'Enter') verifyCode(); });
 
         function login() {
             const pass = document.getElementById('login-pass').value;
@@ -149,54 +136,6 @@
                     return;
                 }
 
-                if (data.token) {
-                    token = data.token;
-                    localStorage.setItem('adminToken', token);
-                    document.getElementById('login-box').style.display = 'none';
-                    document.getElementById('dashboard').style.display = 'block';
-                    loadStats(); loadPosts(); loadBans();
-                } else if (data.needsCode) {
-                    document.getElementById('pass-step').style.display = 'none';
-                    document.getElementById('code-step').style.display = 'block';
-                    if (data.debugCode) {
-                        document.querySelector('#code-step p').innerHTML = 'Почта не настроена. Код: <b style="color:var(--accent);font-size:24px;">' + data.debugCode + '</b>';
-                    } else {
-                        document.querySelector('#code-step p').textContent = 'Код отправлен на почту админа';
-                    }
-                    document.getElementById('login-code').focus();
-                }
-            })
-            .catch(() => {
-                btn.disabled = false;
-                btn.textContent = 'войти';
-                document.getElementById('login-error').textContent = 'Ошибка соединения';
-                document.getElementById('login-error').style.display = 'block';
-            });
-        }
-
-        function verifyCode() {
-            const code = document.getElementById('login-code').value.trim();
-            if (!code || code.length !== 6) return;
-            const btn = document.getElementById('verify-btn');
-            btn.disabled = true;
-            btn.textContent = 'проверка...';
-
-            fetch('/api/admin/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code })
-            })
-            .then(r => r.json().then(data => ({ status: r.status, data })))
-            .then(({ status, data }) => {
-                btn.disabled = false;
-                btn.textContent = 'подтвердить';
-
-                if (status !== 200) {
-                    document.getElementById('code-error').textContent = data.error || 'Ошибка';
-                    document.getElementById('code-error').style.display = 'block';
-                    return;
-                }
-
                 token = data.token;
                 localStorage.setItem('adminToken', token);
                 document.getElementById('login-box').style.display = 'none';
@@ -205,9 +144,9 @@
             })
             .catch(() => {
                 btn.disabled = false;
-                btn.textContent = 'подтвердить';
-                document.getElementById('code-error').textContent = 'Ошибка соединения';
-                document.getElementById('code-error').style.display = 'block';
+                btn.textContent = 'войти';
+                document.getElementById('login-error').textContent = 'Ошибка соединения';
+                document.getElementById('login-error').style.display = 'block';
             });
         }
 
