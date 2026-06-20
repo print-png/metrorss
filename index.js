@@ -30,9 +30,14 @@ function getClientIP(req) {
 
 const banWords = ['crypto', 'sparkwtf', '@sparkwtf', 'casino', 'slots', 'azino', 'азино', 'виннер', 't.me', 'telegram.me'];
 
-function containsBanWords(text) {
+async function containsBanWords(text) {
     const lowerText = text.toLowerCase();
-    return banWords.some(word => lowerText.includes(word));
+    const builtin = banWords.some(word => lowerText.includes(word));
+    if (builtin) return true;
+    try {
+        const adminWords = (await kv.get('adminBanWords')) || [];
+        return adminWords.some(word => lowerText.includes(word));
+    } catch(e) { return false; }
 }
 
 function sanitize(str) {
@@ -365,6 +370,74 @@ app.get('/api/emergency', async (req, res) => {
     } catch (e) { res.json({ text: '', active: false }); }
 });
 
+// --- ADMIN BANWORDS ---
+
+app.get('/api/admin/banwords', adminAuth, async (req, res) => {
+    try {
+        const words = (await kv.get('adminBanWords')) || [];
+        res.json(words);
+    } catch (e) { res.json([]); }
+});
+
+app.post('/api/admin/banwords', adminAuth, async (req, res) => {
+    try {
+        const { words } = req.body;
+        if (!Array.isArray(words)) return res.status(400).json({ error: 'Array expected' });
+        await kv.set('adminBanWords', words.map(w => w.toLowerCase().trim()).filter(Boolean));
+        res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: 'Failed' }); }
+});
+
+// --- ADMIN ALL COMMENTS ---
+
+app.get('/api/admin/comments', adminAuth, async (req, res) => {
+    try {
+        const posts = await getPosts();
+        const all = [];
+        posts.forEach(p => {
+            (p.comments || []).forEach((c, ci) => {
+                all.push({
+                    postId: p.id,
+                    postTitle: p.title || 'без заголовка',
+                    ci,
+                    text: c.text,
+                    date: c.date
+                });
+            });
+        });
+        all.sort((a, b) => new Date(b.date) - new Date(a.date));
+        res.json(all);
+    } catch (e) { res.status(500).json({ error: 'Failed' }); }
+});
+
+app.delete('/api/admin/comments/:postId/:ci', adminAuth, async (req, res) => {
+    try {
+        const posts = await getPosts();
+        const post = posts.find(p => p.id === req.params.postId);
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+        const ci = parseInt(req.params.ci);
+        if (!post.comments || !post.comments[ci]) return res.status(404).json({ error: 'Comment not found' });
+        post.comments.splice(ci, 1);
+        await kv.set('posts', posts);
+        res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: 'Failed' }); }
+});
+
+// --- ADMIN SEARCH POSTS ---
+
+app.get('/api/admin/search', adminAuth, async (req, res) => {
+    try {
+        const q = (req.query.q || '').toLowerCase().trim();
+        if (!q) return res.json([]);
+        const posts = await getPosts();
+        const result = posts.filter(p =>
+            (p.title || '').toLowerCase().includes(q) ||
+            (p.text || '').toLowerCase().includes(q)
+        );
+        res.json(result.slice(0, 50));
+    } catch (e) { res.status(500).json({ error: 'Failed' }); }
+});
+
 // --- ROUTES ---
 
 app.get('/api/health', async (req, res) => {
@@ -401,7 +474,7 @@ app.post('/api/posts', async (req, res) => {
         const cleanTitle = title.trim();
         const cleanText = text.trim();
 
-        if (containsBanWords(cleanTitle) || containsBanWords(cleanText)) {
+        if (await containsBanWords(cleanTitle) || await containsBanWords(cleanText)) {
             return res.status(403).json({ error: 'Forbidden words detected' });
         }
 
@@ -471,7 +544,7 @@ app.post('/api/posts/:id/comments', async (req, res) => {
             return res.status(400).json({ error: 'Invalid comment' });
         }
         const commentText = text.trim().substring(0, 500);
-        if (containsBanWords(commentText)) {
+        if (await containsBanWords(commentText)) {
             return res.status(403).json({ error: 'Forbidden words' });
         }
         const posts = await getPosts();

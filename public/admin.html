@@ -63,6 +63,10 @@
         .danger-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .del-btn:hover, .unban-btn:hover { background: #e51400; color: white; }
         .ban-form { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+        .search-bar { display: flex; gap: 8px; margin-bottom: 15px; }
+        .search-bar input { flex: 1; min-width: 100px; background: #111; color: #fff; border: 1px solid #333; padding: 8px 12px; font-size: 13px; font-family: inherit; user-select: text; }
+        .search-bar input:focus { outline: none; border-color: var(--accent); }
+        .search-bar button { background: var(--accent); border: none; color: white; padding: 8px 16px; cursor: pointer; font-family: inherit; font-size: 13px; text-transform: lowercase; }
         .ban-form input { flex: 1; min-width: 120px; background: #111; color: #fff; border: 1px solid #333; padding: 8px 12px; font-size: 13px; font-family: inherit; user-select: text; }
         .ban-form input:focus { outline: none; border-color: var(--accent); }
         .ban-form button { background: var(--accent); border: none; color: white; padding: 8px 16px; cursor: pointer; font-family: inherit; font-size: 13px; text-transform: lowercase; }
@@ -88,14 +92,30 @@
 
         <div class="tab-bar">
             <button class="tab-btn active" data-tab="posts">посты</button>
+            <button class="tab-btn" data-tab="comments">комментарии</button>
             <button class="tab-btn" data-tab="bans">баны IP</button>
             <button class="tab-btn" data-tab="devices">баны device</button>
+            <button class="tab-btn" data-tab="banwords">слова</button>
             <button class="tab-btn" data-tab="emergency">экстренное</button>
             <button class="tab-btn" data-tab="danger">опасная зона</button>
         </div>
 
         <div class="tab-content active" id="tab-posts">
+            <div class="search-bar"><input id="post-search" placeholder="поиск по постам..." maxlength="100"><button id="post-search-btn">найти</button></div>
             <div id="posts-list"></div>
+        </div>
+
+        <div class="tab-content" id="tab-comments">
+            <div id="comments-list"></div>
+        </div>
+
+        <div class="tab-content" id="tab-banwords">
+            <div class="ban-form">
+                <textarea id="banwords-text" placeholder="слова через запятую" style="min-height:80px;font-size:13px;"></textarea>
+                <button id="banwords-save">сохранить</button>
+                <span id="banwords-status" style="color:#666;font-size:12px;margin-left:8px;"></span>
+            </div>
+            <p style="color:#555;font-size:12px;margin-top:8px;">встроенные: crypto, sparkwtf, @sparkwtf, casino, slots, azino, азино, виннер, t.me, telegram.me</p>
         </div>
 
         <div class="tab-content" id="tab-bans">
@@ -171,7 +191,7 @@
             api('/api/admin/stats').then(() => {
                 document.getElementById('login-box').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
-                loadStats(); loadPosts(); loadBans(); loadDeviceBans(); loadEmergency(); loadEmergency();
+                loadStats(); loadPosts(); loadBans(); loadDeviceBans(); loadEmergency(); loadComments(); loadBanwords();
             }).catch(() => {
                 localStorage.removeItem('adminToken');
                 token = '';
@@ -214,7 +234,7 @@
                 localStorage.setItem('adminToken', token);
                 document.getElementById('login-box').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
-                loadStats(); loadPosts(); loadBans(); loadDeviceBans(); loadEmergency();
+                loadStats(); loadPosts(); loadBans(); loadDeviceBans(); loadEmergency(); loadComments(); loadBanwords();
             })
             .catch(() => {
                 btn.disabled = false;
@@ -495,6 +515,88 @@
             if (!confirm('Снять экстренную новость?')) return;
             api('/api/admin/emergency', { method: 'DELETE' })
                 .then(() => { loadEmergency(); });
+        });
+
+        // --- COMMENTS ---
+        function loadComments() {
+            const el = document.getElementById('comments-list');
+            el.innerHTML = '<div class="loader">загрузка...</div>';
+            api('/api/admin/comments').then(comments => {
+                if (!comments.length) { el.innerHTML = '<p style="color:#666;">комментариев нет</p>'; return; }
+                el.innerHTML = comments.map(c => `
+                    <div class="post-item">
+                        <div class="info">
+                            <div class="title" style="font-size:12px;color:var(--accent);">${c.postTitle}</div>
+                            <div class="meta">${c.text} &middot; ${new Date(c.date).toLocaleDateString('ru')}</div>
+                        </div>
+                        <button class="del-btn" data-postid="${c.postId}" data-ci="${c.ci}">удалить</button>
+                    </div>
+                `).join('');
+                el.querySelectorAll('.del-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        if (!confirm('Удалить комментарий?')) return;
+                        api('/api/admin/comments/' + btn.dataset.postid + '/' + btn.dataset.ci, { method: 'DELETE' })
+                            .then(() => { loadComments(); loadStats(); });
+                    });
+                });
+            }).catch(() => { el.innerHTML = '<p style="color:#e51400;">ошибка загрузки</p>'; });
+        }
+
+        // --- BANWORDS ---
+        function loadBanwords() {
+            api('/api/admin/banwords').then(words => {
+                document.getElementById('banwords-text').value = words.join(', ');
+                document.getElementById('banwords-status').textContent = '';
+            }).catch(() => {});
+        }
+
+        document.getElementById('banwords-save').addEventListener('click', () => {
+            const raw = document.getElementById('banwords-text').value;
+            const words = raw.split(',').map(w => w.trim()).filter(Boolean);
+            const btn = document.getElementById('banwords-save');
+            btn.disabled = true; btn.textContent = 'сохраняю...';
+            api('/api/admin/banwords', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ words }) })
+                .then(() => { btn.disabled = false; btn.textContent = 'сохранить'; document.getElementById('banwords-status').textContent = '✅ сохранено'; });
+        });
+
+        // --- SEARCH ---
+        document.getElementById('post-search-btn').addEventListener('click', () => {
+            const q = document.getElementById('post-search').value.trim();
+            const el = document.getElementById('posts-list');
+            if (!q) { loadPosts(); return; }
+            el.innerHTML = '<div class="loader">поиск...</div>';
+            api('/api/admin/search?q=' + encodeURIComponent(q)).then(posts => {
+                if (!posts.length) { el.innerHTML = '<p style="color:#666;">ничего не найдено</p>'; return; }
+                el.innerHTML = posts.map(p => `
+                    <div class="post-item">
+                        <div class="info">
+                            <div class="title">${p.title || 'без заголовка'}</div>
+                            <div class="meta">${p.text}… &middot; ${new Date(p.date).toLocaleDateString('ru')} &middot; ❤ ${p.likes} &middot; 💬 ${(p.comments||[]).length} ${p.ip ? '<span class="label-badge ip">' + p.ip + '</span>' : ''} ${p.deviceId ? '<span class="label-badge device">' + p.deviceId.substring(0,20) + '…</span>' : ''}</div>
+                        </div>
+                        <div class="post-actions">
+                            ${p.ip ? '<button class="ban-btn" data-ip="' + p.ip + '">🔨 IP</button>' : ''}
+                            ${p.deviceId ? '<button class="ban-btn" data-device="' + p.deviceId + '">🔨 device</button>' : ''}
+                            <button class="del-btn" data-id="${p.id}">удалить</button>
+                        </div>
+                    </div>
+                `).join('');
+                el.querySelectorAll('.del-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        if (!confirm('Удалить пост?')) return;
+                        api('/api/admin/posts/' + btn.dataset.id, { method: 'DELETE' }).then(() => { document.getElementById('post-search').value = ''; loadPosts(); loadStats(); });
+                    });
+                });
+                el.querySelectorAll('.ban-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const ip = btn.dataset.ip; const device = btn.dataset.device;
+                        if (ip && !confirm('Забанить IP ' + ip + ' на 24ч?')) return;
+                        if (device && !confirm('Забанить device ' + device.substring(0,30) + '… на 24ч?')) return;
+                        const until = Date.now() + 86400000;
+                        if (ip) api('/api/admin/ban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip, reason: 'быстрый бан из админки', until }) }).then(() => { loadBans(); loadStats(); });
+                        if (device) api('/api/admin/ban-device', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: device, reason: 'быстрый бан из админки', until }) }).then(() => { loadDeviceBans(); loadStats(); });
+                    });
+                });
+            }).catch(() => { el.innerHTML = '<p style="color:#e51400;">ошибка поиска</p>'; });
         });
     </script>
 </body>
