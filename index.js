@@ -578,8 +578,8 @@ app.get('/api/liked-by-device', async (req, res) => {
 app.post('/api/posts', async (req, res) => {
     try {
         const ip = getClientIP(req);
-        if (!checkActionLimit(ip, 'post', 5, 60000)) {
-            return res.status(429).json({ error: 'Слишком много постов, подожди' });
+        if (!checkActionLimit(ip, 'post', 3, 120000)) {
+            return res.status(429).json({ error: 'Слишком много постов, подожди 2 минуты' });
         }
 
         const { title, text } = req.body;
@@ -589,6 +589,10 @@ app.post('/api/posts', async (req, res) => {
 
         const cleanTitle = title.trim();
         const cleanText = text.trim();
+
+        if (cleanTitle.length < 2 || cleanText.length < 2) {
+            return res.status(400).json({ error: 'Слишком короткий пост' });
+        }
 
         if (await containsBanWords(cleanTitle) || await containsBanWords(cleanText)) {
             return res.status(403).json({ error: 'Forbidden words detected' });
@@ -601,6 +605,19 @@ app.post('/api/posts', async (req, res) => {
             return res.status(403).json({ error: 'Duplicate content' });
         }
 
+        const recent = posts.slice(0, 20).some(p =>
+            p.ip === ip && Date.now() - new Date(p.date).getTime() < 30000
+        );
+        if (recent) {
+            return res.status(429).json({ error: 'Подожди 30 секунд между постами' });
+        }
+
+        const ipCount = (await kv.get('postCount:' + ip)) || 0;
+        if (ipCount >= 30) {
+            return res.status(403).json({ error: 'Лимит постов исчерпан' });
+        }
+        await kv.set('postCount:' + ip, ipCount + 1);
+
         const newPost = {
             id: Date.now().toString(),
             title: sanitize(cleanTitle.substring(0, 100)),
@@ -608,7 +625,7 @@ app.post('/api/posts', async (req, res) => {
             date: new Date().toUTCString(),
             likes: 0,
             comments: [],
-            ip: getClientIP(req),
+            ip,
             deviceId: getDeviceID(req)
         };
 
