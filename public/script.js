@@ -174,9 +174,9 @@ function toggleComments(commentsEl) {
     commentsEl.classList.toggle('open');
 }
 
-async function loadNews() {
+async function loadNews(silent) {
     const feed = document.getElementById('feed');
-    feed.innerHTML = '<img class="loader-gif" src="/loader.gif">';
+    if (!silent) feed.innerHTML = '<img class="loader-gif" src="/loader.gif">';
     try {
         const res = await fetch(API);
         if (!res.ok) {
@@ -198,7 +198,7 @@ async function loadNews() {
             const text = p && p.text ? String(p.text) : '';
             const likes = p && typeof p.likes === 'number' ? p.likes : 0;
             const comments = p && Array.isArray(p.comments) ? p.comments : [];
-            return '<div class="post" style="animation-delay:' + (i*0.05) + 's" data-id="' + id + '">' +
+            return '<div class="post' + (silent ? ' no-anim' : '') + '" style="' + (silent ? '' : 'animation-delay:' + (i*0.05) + 's') + '" data-id="' + id + '">' +
                 '<h2>' + title + '</h2><p>' + text + '</p>' +
                 '<div class="bar">' +
                     '<button class="like-btn" data-id="' + id + '">' +
@@ -220,7 +220,7 @@ async function loadNews() {
         }).join('');
         attachListeners();
     } catch (e) {
-        feed.innerHTML = '<p style="color:#e51400;font-weight:300;">не удалось загрузить ленту: ' + e.message + '</p>';
+        if (!silent) feed.innerHTML = '<p style="color:#e51400;font-weight:300;">не удалось загрузить ленту: ' + e.message + '</p>';
     }
 }
 
@@ -326,6 +326,10 @@ document.addEventListener('pointerdown', (e) => {
 });
 
 loadNews();
+
+let autoRefresh = setInterval(() => {
+    if (currentFeed === 'all') loadNews(true);
+}, 30000);
 
 async function loadEmergency() {
     try {
