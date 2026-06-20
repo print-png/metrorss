@@ -44,7 +44,7 @@
         <h3>создать новость</h3>
         <input id="t" placeholder="заголовок новости">
         <textarea id="d" placeholder="текст новости (поддерживает базовый html: <p>, <b>, <i>)"></textarea>
-        <button class="wp-btn" id="submit-btn" onclick="postNews()">
+        <button class="wp-btn" id="submit-btn">
             <i class="material-icons" style="font-size: 18px;">send</i> опубликовать
         </button>
     </div>
@@ -53,33 +53,7 @@
     <script>
         const API = "/api/posts";
         const RSS = "/rss";
-        async function postNews() {
-            console.log('postNews called');
-            const titleEl = document.getElementById('t');
-            const textEl = document.getElementById('d');
-            const btn = document.getElementById('submit-btn');
-            if (!titleEl.value.trim() || !textEl.value.trim()) return alert('Заполните все поля!');
-            btn.disabled = true;
-            btn.innerHTML = 'публикация...';
-            try {
-                const res = await fetch(API, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ title: titleEl.value, text: textEl.value })
-                });
-            if (!res.ok) throw new Error('Сервер ответил ошибкой: ' + res.status);
-            const data = await res.json();
-            if (data.error) { alert(data.error); return; }
-            titleEl.value = '';
-            textEl.value = '';
-            await loadNews();
-        } catch (e) {
-                alert('Ошибка при публикации: ' + e.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="material-icons" style="font-size:18px;">send</i> опубликовать';
-            }
-        }
+        
         async function loadNews() {
             const feed = document.getElementById('feed');
             feed.innerHTML = '<img class="loader-gif" src="https://media.tenor.com/ptkoPmx8XAkAAAAi/windows-loading.gif">';
@@ -100,6 +74,44 @@
                 feed.innerHTML = '<p style="color:#e51400;font-weight:300;">не удалось загрузить ленту: ' + e.message + '</p>';
             }
         }
+
+        async function postNews() {
+            const titleEl = document.getElementById('t');
+            const textEl = document.getElementById('d');
+            const btn = document.getElementById('submit-btn');
+            
+            if (!titleEl.value.trim() || !textEl.value.trim()) {
+                return alert('Заполните все поля!');
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = 'публикация...';
+            
+            try {
+                const res = await fetch(API, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ title: titleEl.value, text: textEl.value })
+                });
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    throw new Error(data.error || 'Сервер ответил ошибкой: ' + res.status);
+                }
+                
+                titleEl.value = '';
+                textEl.value = '';
+                await loadNews();
+            } catch (e) {
+                alert('Ошибка при публикации: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="material-icons" style="font-size:18px;">send</i> опубликовать';
+            }
+        }
+
+        document.getElementById('submit-btn').addEventListener('click', postNews);
+
         document.addEventListener('pointerdown', (e) => {
             const target = e.target.closest('.wp-btn, .post, .wp-box');
             if (!target) return;
@@ -112,6 +124,7 @@
             document.addEventListener('pointerup', reset);
             target.addEventListener('pointerleave', reset);
         });
+
         loadNews();
     </script>
 </body>
