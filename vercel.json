@@ -1,5 +1,5 @@
 ﻿{
-  "rewrites": [
-    { "source": "/rss", "destination": "/api/rss" }
+  "routes": [
+    { "src": "/rss", "dest": "/api/rss" }
   ]
 }
