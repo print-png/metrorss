@@ -67,6 +67,107 @@ async function getPosts() {
     }
 }
 
+function getClientIP(req) {
+    return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+}
+
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+
+function adminAuth(req, res, next) {
+    const auth = req.headers.authorization;
+    if (!auth || !auth.startsWith('Basic ')) {
+        res.set('WWW-Authenticate', 'Basic realm="Admin"');
+        return res.status(401).json({ error: 'Authentication required' });
+    }
+    const decoded = Buffer.from(auth.slice(6), 'base64').toString();
+    const [, password] = decoded.split(':');
+    if (password !== ADMIN_PASSWORD) {
+        res.set('WWW-Authenticate', 'Basic realm="Admin"');
+        return res.status(401).json({ error: 'Invalid password' });
+    }
+    next();
+}
+
+// --- ADMIN ROUTES ---
+
+app.get('/api/admin/stats', adminAuth, async (req, res) => {
+    try {
+        const posts = await getPosts();
+        const blockedIPs = (await kv.get('blockedIPs')) || {};
+        res.json({
+            postsCount: posts.length,
+            bannedIPsCount: Object.keys(blockedIPs).length,
+            totalLikes: posts.reduce((sum, p) => sum + (p.likes || 0), 0),
+            totalComments: posts.reduce((sum, p) => sum + (p.comments?.length || 0), 0)
+        });
+    } catch (e) {
+        res.status(500).json({ error: 'Stats failed' });
+    }
+});
+
+app.get('/api/admin/posts', adminAuth, async (req, res) => {
+    try {
+        const posts = await getPosts();
+        res.json(posts.map(p => ({
+            id: p.id,
+            title: p.title,
+            text: p.text.substring(0, 100),
+            date: p.date,
+            likes: p.likes || 0,
+            commentsCount: p.comments?.length || 0,
+            image: p.image ? 'yes' : 'no'
+        })));
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to load posts' });
+    }
+});
+
+app.delete('/api/admin/posts/:id', adminAuth, async (req, res) => {
+    try {
+        const posts = await getPosts();
+        const idx = posts.findIndex(p => p.id === req.params.id);
+        if (idx === -1) return res.status(404).json({ error: 'Post not found' });
+        posts.splice(idx, 1);
+        await kv.set('posts', posts);
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Delete failed' });
+    }
+});
+
+app.get('/api/admin/banned', adminAuth, async (req, res) => {
+    try {
+        const blockedIPs = (await kv.get('blockedIPs')) || {};
+        res.json(blockedIPs);
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to load bans' });
+    }
+});
+
+app.post('/api/admin/ban', adminAuth, async (req, res) => {
+    try {
+        const { ip, reason, until } = req.body;
+        if (!ip) return res.status(400).json({ error: 'IP required' });
+        const blockedIPs = (await kv.get('blockedIPs')) || {};
+        blockedIPs[ip] = { reason: reason || 'Manual ban', until: until || Date.now() + 86400000, at: Date.now() };
+        await kv.set('blockedIPs', blockedIPs);
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Ban failed' });
+    }
+});
+
+app.delete('/api/admin/ban/:ip', adminAuth, async (req, res) => {
+    try {
+        const blockedIPs = (await kv.get('blockedIPs')) || {};
+        delete blockedIPs[req.params.ip];
+        await kv.set('blockedIPs', blockedIPs);
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Unban failed' });
+    }
+});
+
 // --- ROUTES ---
 
 app.get('/api/health', async (req, res) => {
