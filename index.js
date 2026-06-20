@@ -22,6 +22,10 @@ app.use((req, res, next) => {
     next();
 });
 
+function getClientIP(req) {
+    return (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+}
+
 // --- HELPERS ---
 
 const banWords = ['crypto', 'sparkwtf', '@sparkwtf', 'casino', 'slots', 'azino', 'азино', 'виннер', 't.me', 'telegram.me'];
@@ -129,6 +133,15 @@ app.post('/api/posts/:id/like', async (req, res) => {
         const posts = await getPosts();
         const post = posts.find(p => p.id === req.params.id);
         if (!post) return res.status(404).json({ error: 'Post not found' });
+        
+        const ip = getClientIP(req);
+        if (!post.likedBy) post.likedBy = [];
+        
+        if (post.likedBy.includes(ip)) {
+            return res.status(409).json({ error: 'Already liked', likes: post.likes });
+        }
+        
+        post.likedBy.push(ip);
         post.likes = (post.likes || 0) + 1;
         await kv.set('posts', posts.slice(0, 500));
         res.json({ likes: post.likes });
