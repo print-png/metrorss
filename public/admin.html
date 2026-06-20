@@ -232,6 +232,7 @@
 
                 token = data.token;
                 localStorage.setItem('adminToken', token);
+                new Audio('/admin-login.wav').play();
                 document.getElementById('login-box').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
                 loadStats(); loadPosts(); loadBans(); loadDeviceBans(); loadEmergency(); loadComments(); loadBanwords();
