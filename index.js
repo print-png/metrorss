@@ -214,7 +214,9 @@ app.get('/api/admin/posts', adminAuth, async (req, res) => {
             date: p.date,
             likes: p.likes || 0,
             commentsCount: p.comments?.length || 0,
-            image: p.image ? 'yes' : 'no'
+            image: p.image ? 'yes' : 'no',
+            ip: p.ip || '',
+            deviceId: p.deviceId || ''
         })));
     } catch (e) {
         res.status(500).json({ error: 'Failed to load posts' });
@@ -355,7 +357,9 @@ app.post('/api/posts', async (req, res) => {
             text: sanitize(cleanText.substring(0, 2000)),
             date: new Date().toUTCString(),
             likes: 0,
-            comments: []
+            comments: [],
+            ip: getClientIP(req),
+            deviceId: getDeviceID(req)
         };
 
         posts.unshift(newPost);

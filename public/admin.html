@@ -198,7 +198,7 @@
                     <div class="post-item">
                         <div class="info">
                             <div class="title">${p.title || 'без заголовка'}</div>
-                            <div class="meta">${p.text}… &middot; ${new Date(p.date).toLocaleDateString('ru')} &middot; ❤ ${p.likes} &middot; 💬 ${p.commentsCount}</div>
+                            <div class="meta">${p.text}… &middot; ${new Date(p.date).toLocaleDateString('ru')} &middot; ❤ ${p.likes} &middot; 💬 ${p.commentsCount}${p.ip ? ' &middot; IP: ' + p.ip : ''}${p.deviceId ? ' &middot; D: ' + p.deviceId.substring(0, 16) + '…' : ''}</div>
                         </div>
                         <button class="del-btn" data-id="${p.id}">удалить</button>
                     </div>
