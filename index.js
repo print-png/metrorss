@@ -90,6 +90,28 @@ function checkRateLimit(ip) {
     return entry.count <= 10;
 }
 
+// --- ACTION RATE LIMITER (likes, comments) ---
+
+const actionLimits = new Map();
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of actionLimits) {
+        if (now > val.resetAt) actionLimits.delete(key);
+    }
+}, 30000);
+
+function checkActionLimit(ip, action, max, windowMs) {
+    const now = Date.now();
+    const k = action + ':' + ip;
+    let entry = actionLimits.get(k);
+    if (!entry || now > entry.resetAt) {
+        entry = { count: 0, resetAt: now + windowMs };
+        actionLimits.set(k, entry);
+    }
+    entry.count++;
+    return entry.count <= max;
+}
+
 // --- SESSION HELPERS ---
 
 function randomToken() {
@@ -253,6 +275,11 @@ app.get('/api/posts', async (req, res) => {
 
 app.post('/api/posts', async (req, res) => {
     try {
+        const ip = getClientIP(req);
+        if (!checkActionLimit(ip, 'post', 5, 60000)) {
+            return res.status(429).json({ error: 'Слишком много постов, подожди' });
+        }
+
         const { title, text } = req.body;
         if (typeof title !== 'string' || typeof text !== 'string') {
             return res.status(400).json({ error: 'Invalid input' });
@@ -293,11 +320,15 @@ app.post('/api/posts', async (req, res) => {
 
 app.post('/api/posts/:id/like', async (req, res) => {
     try {
+        const ip = getClientIP(req);
+        if (!checkActionLimit(ip, 'like', 30, 60000)) {
+            return res.status(429).json({ error: 'Слишком много лайков, подожди' });
+        }
+
         const posts = await getPosts();
         const post = posts.find(p => p.id === req.params.id);
         if (!post) return res.status(404).json({ error: 'Post not found' });
         
-        const ip = getClientIP(req);
         if (!post.likedBy) post.likedBy = [];
         
         if (post.likedBy.includes(ip)) {
@@ -315,6 +346,11 @@ app.post('/api/posts/:id/like', async (req, res) => {
 
 app.post('/api/posts/:id/comments', async (req, res) => {
     try {
+        const ip = getClientIP(req);
+        if (!checkActionLimit(ip, 'comment', 10, 60000)) {
+            return res.status(429).json({ error: 'Слишком много комментариев, подожди' });
+        }
+
         const { text } = req.body;
         if (typeof text !== 'string' || !text.trim()) {
             return res.status(400).json({ error: 'Invalid comment' });
