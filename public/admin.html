@@ -47,10 +47,9 @@
         .ban-item .reason { font-size: 12px; color: #999; margin-top: 4px; }
         .del-btn, .unban-btn { background: none; border: 1px solid #e51400; color: #e51400; padding: 4px 12px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
         .post-actions { display: flex; gap: 6px; flex-shrink: 0; }
-        .post-actions { display: flex; gap: 6px; flex-shrink: 0; }
         .ban-btn { background: none; border: 1px solid #744da9; color: #744da9; padding: 4px 12px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
         .ban-btn:hover { background: #744da9; color: white; }
-        .emergency-box { border: 2px solid #e51400; padding: 16px; margin-bottom: 25px; background: #0a0505; }
+        .emergency-box { border: 2px solid #e51400; padding: 16px; background: #0a0505; }
         .emergency-header { color: #e51400; font-size: 16px; font-weight: 200; text-transform: lowercase; margin-bottom: 10px; }
         .emergency-box textarea { width: 100%; min-height: 60px; background: #111; color: #fff; border: 1px solid #333; padding: 10px; font-size: 14px; font-family: inherit; resize: vertical; user-select: text; }
         .emergency-box textarea:focus { outline: none; border-color: var(--accent); }
@@ -87,20 +86,11 @@
     <div class="dashboard" id="dashboard">
         <div class="stats-grid" id="stats"></div>
 
-        <div class="emergency-box" id="emergency-box">
-            <div class="emergency-header">📢 экстренная новость</div>
-            <textarea id="emergency-text" placeholder="текст новости (до 2000 символов)" maxlength="2000"></textarea>
-            <div class="emergency-actions">
-                <button class="danger-btn" id="emergency-set">опубликовать</button>
-                <button class="del-btn" id="emergency-clear" style="display:none;">снять</button>
-                <span class="emergency-status" id="emergency-status"></span>
-            </div>
-        </div>
-
         <div class="tab-bar">
             <button class="tab-btn active" data-tab="posts">посты</button>
             <button class="tab-btn" data-tab="bans">баны IP</button>
             <button class="tab-btn" data-tab="devices">баны device</button>
+            <button class="tab-btn" data-tab="emergency">экстренное</button>
             <button class="tab-btn" data-tab="danger">опасная зона</button>
         </div>
 
@@ -141,6 +131,18 @@
             </div>
             <div id="devices-list"></div>
             <p style="color:#555;font-size:12px;margin-top:12px;">узнать deviceId юзера: он возвращается в ответе при бане (403) или спроси у юзера — открой F12 → localStorage → ключ <code style="background:#111;padding:1px 4px;">_did</code><br>твой текущий deviceId: <span id="my-device-id" style="color:var(--accent);font-size:11px;"></span></p>
+        </div>
+
+        <div class="tab-content" id="tab-emergency">
+            <div class="emergency-box">
+                <div class="emergency-header">📢 экстренная новость</div>
+                <textarea id="emergency-text" placeholder="текст новости (до 2000 символов)" maxlength="2000"></textarea>
+                <div class="emergency-actions">
+                    <button class="danger-btn" id="emergency-set">опубликовать</button>
+                    <button class="del-btn" id="emergency-clear" style="display:none;">снять</button>
+                    <span class="emergency-status" id="emergency-status"></span>
+                </div>
+            </div>
         </div>
 
         <div class="tab-content" id="tab-danger">
