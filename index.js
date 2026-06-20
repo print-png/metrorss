@@ -68,20 +68,76 @@ async function getPosts() {
 }
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'mR55_2026!Admin#Secure';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 
-function adminAuth(req, res, next) {
+// --- RATE LIMITER (in-memory) ---
+
+const loginAttempts = new Map();
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of loginAttempts) {
+        if (now > val.resetAt) loginAttempts.delete(key);
+    }
+}, 60000);
+
+function checkRateLimit(ip) {
+    const now = Date.now();
+    let entry = loginAttempts.get(ip);
+    if (!entry || now > entry.resetAt) {
+        entry = { count: 0, resetAt: now + 900000 };
+        loginAttempts.set(ip, entry);
+    }
+    entry.count++;
+    return entry.count <= 10;
+}
+
+// --- SESSION HELPERS ---
+
+function randomToken() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let r = '';
+    for (let i = 0; i < 32; i++) r += chars[Math.floor(Math.random() * chars.length)];
+    return r;
+}
+
+async function adminAuth(req, res, next) {
     const auth = req.headers.authorization;
-    if (!auth || !auth.startsWith('Basic ')) {
-        res.set('WWW-Authenticate', 'Basic realm="Admin"');
-        return res.status(401).json({ error: 'Authentication required' });
+    if (!auth || !auth.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Требуется авторизация' });
     }
-    const decoded = Buffer.from(auth.slice(6), 'base64').toString();
-    const [, password] = decoded.split(':');
-    if (password !== ADMIN_PASSWORD) {
-        res.set('WWW-Authenticate', 'Basic realm="Admin"');
-        return res.status(401).json({ error: 'Invalid password' });
+    const token = auth.slice(7);
+    try {
+        const session = await kv.get('session:' + token);
+        if (!session) return res.status(401).json({ error: 'Сессия истекла' });
+        req.adminIP = session.ip;
+        next();
+    } catch (e) {
+        res.status(500).json({ error: 'Auth check failed' });
     }
-    next();
+}
+
+async function sendCodeEmail(code) {
+    if (!RESEND_API_KEY || !ADMIN_EMAIL) {
+        console.log('Email not configured, code:', code);
+        return true;
+    }
+    try {
+        const res = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + RESEND_API_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                from: 'metroRSS <noreply@' + ADMIN_EMAIL.split('@')[1] + '>',
+                to: ADMIN_EMAIL,
+                subject: 'Код входа в админку metroRSS',
+                html: '<p>Ваш код для входа:</p><h2 style="color:#744da9;">' + code + '</h2><p>Код действует 5 минут.</p>'
+            })
+        });
+        return res.ok;
+    } catch (e) {
+        console.error('Email send failed:', e);
+        return false;
+    }
 }
 
 // --- IP BAN MIDDLEWARE ---
@@ -99,7 +155,66 @@ app.use(async (req, res, next) => {
     next();
 });
 
-// --- ADMIN ROUTES ---
+// --- ADMIN AUTH ROUTES (no session required) ---
+
+app.post('/api/admin/login', async (req, res) => {
+    try {
+        const { password } = req.body;
+        if (!password) return res.status(400).json({ error: 'Введите пароль' });
+        if (password !== ADMIN_PASSWORD) return res.status(403).json({ error: 'Неверный пароль' });
+
+        const ip = getClientIP(req);
+        if (!checkRateLimit(ip)) return res.status(429).json({ error: 'Слишком много попыток, подождите' });
+
+        const authorizedIPs = (await kv.get('authorizedIPs')) || {};
+
+        if (authorizedIPs[ip]) {
+            const token = randomToken();
+            await kv.set('session:' + token, { ip, at: Date.now() }, { ex: 86400 });
+            return res.json({ token, newIP: false });
+        }
+
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        const codes = (await kv.get('loginCodes')) || {};
+        codes[ip] = { code, expires: Date.now() + 300000 };
+        await kv.set('loginCodes', codes);
+        await sendCodeEmail(code);
+
+        res.json({ needsCode: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Login failed' });
+    }
+});
+
+app.post('/api/admin/verify', async (req, res) => {
+    try {
+        const { code } = req.body;
+        if (!code) return res.status(400).json({ error: 'Введите код' });
+
+        const ip = getClientIP(req);
+        const codes = (await kv.get('loginCodes')) || {};
+        const entry = codes[ip];
+
+        if (!entry || entry.code !== code) return res.status(403).json({ error: 'Неверный код' });
+        if (Date.now() > entry.expires) return res.status(403).json({ error: 'Код истек' });
+
+        delete codes[ip];
+        await kv.set('loginCodes', codes);
+
+        const authorizedIPs = (await kv.get('authorizedIPs')) || {};
+        authorizedIPs[ip] = Date.now();
+        await kv.set('authorizedIPs', authorizedIPs);
+
+        const token = randomToken();
+        await kv.set('session:' + token, { ip, at: Date.now() }, { ex: 86400 });
+
+        res.json({ token });
+    } catch (e) {
+        res.status(500).json({ error: 'Verify failed' });
+    }
+});
+
+// --- ADMIN ROUTES (session required) ---
 
 app.get('/api/admin/stats', adminAuth, async (req, res) => {
     try {

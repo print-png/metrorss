@@ -21,7 +21,10 @@
         .login-box input:focus { outline: none; border-color: var(--win-fg); }
         .login-btn { background: var(--accent); border: 2px solid var(--accent); color: white; padding: 10px 25px; font-size: 15px; font-weight: 400; cursor: pointer; text-transform: lowercase; transition: all 0.15s ease; }
         .login-btn:hover { background: transparent; color: var(--accent); }
+        .login-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .login-error { color: #e51400; font-size: 13px; margin-top: 10px; display: none; }
+        .login-info { color: #999; font-size: 13px; margin-top: 10px; display: none; }
+        .code-step { display: none; }
         .dashboard { display: none; }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 30px; }
         .stat-card { border: 2px solid var(--accent); padding: 20px; background: #0a0a0a; text-align: center; }
@@ -55,10 +58,19 @@
     </div>
 
     <div class="login-box" id="login-box">
-        <h3>вход</h3>
-        <input id="login-pass" type="password" placeholder="пароль">
-        <button class="login-btn" id="login-btn">войти</button>
-        <div class="login-error" id="login-error">неверный пароль</div>
+        <div id="pass-step">
+            <h3>вход</h3>
+            <input id="login-pass" type="password" placeholder="пароль">
+            <button class="login-btn" id="login-btn">войти</button>
+            <div class="login-error" id="login-error"></div>
+        </div>
+        <div class="code-step" id="code-step">
+            <h3>код из почты</h3>
+            <p style="color:#999;font-size:13px;margin-bottom:15px;">Код отправлен на почту админа</p>
+            <input id="login-code" type="text" placeholder="6 цифр" maxlength="6">
+            <button class="login-btn" id="verify-btn">подтвердить</button>
+            <div class="login-error" id="code-error"></div>
+        </div>
     </div>
 
     <div class="dashboard" id="dashboard">
@@ -84,31 +96,114 @@
     </div>
 
     <script>
-        let auth = '';
-
-        document.getElementById('login-btn').addEventListener('click', login);
-        document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
-
-        function login() {
-            const pass = document.getElementById('login-pass').value;
-            auth = 'Basic ' + btoa('admin:' + pass);
-            fetch('/api/admin/stats', { headers: { 'Authorization': auth } })
-                .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-                .then(() => {
-                    document.getElementById('login-box').style.display = 'none';
-                    document.getElementById('dashboard').style.display = 'block';
-                    loadStats(); loadPosts(); loadBans();
-                })
-                .catch(() => {
-                    document.getElementById('login-error').style.display = 'block';
-                    auth = '';
-                });
-        }
+        let token = localStorage.getItem('adminToken');
 
         function api(path, opts = {}) {
             opts.headers = opts.headers || {};
-            opts.headers['Authorization'] = auth;
+            opts.headers['Authorization'] = 'Bearer ' + token;
             return fetch(path, opts).then(r => { if (!r.ok) throw new Error(); return r.json(); });
+        }
+
+        if (token) {
+            api('/api/admin/stats').then(() => {
+                document.getElementById('login-box').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                loadStats(); loadPosts(); loadBans();
+            }).catch(() => {
+                localStorage.removeItem('adminToken');
+                token = '';
+            });
+        }
+
+        document.getElementById('login-btn').addEventListener('click', login);
+        document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+        document.getElementById('verify-btn').addEventListener('click', verifyCode);
+        document.getElementById('login-code').addEventListener('keydown', e => { if (e.key === 'Enter') verifyCode(); });
+
+        function login() {
+            const pass = document.getElementById('login-pass').value;
+            if (!pass) return;
+            const btn = document.getElementById('login-btn');
+            btn.disabled = true;
+            btn.textContent = 'проверка...';
+
+            fetch('/api/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pass })
+            })
+            .then(r => r.json().then(data => ({ status: r.status, data })))
+            .then(({ status, data }) => {
+                btn.disabled = false;
+                btn.textContent = 'войти';
+
+                if (status === 429) {
+                    document.getElementById('login-error').textContent = data.error;
+                    document.getElementById('login-error').style.display = 'block';
+                    return;
+                }
+
+                if (status !== 200) {
+                    document.getElementById('login-error').textContent = data.error || 'Ошибка';
+                    document.getElementById('login-error').style.display = 'block';
+                    return;
+                }
+
+                if (data.token) {
+                    token = data.token;
+                    localStorage.setItem('adminToken', token);
+                    document.getElementById('login-box').style.display = 'none';
+                    document.getElementById('dashboard').style.display = 'block';
+                    loadStats(); loadPosts(); loadBans();
+                } else if (data.needsCode) {
+                    document.getElementById('pass-step').style.display = 'none';
+                    document.getElementById('code-step').style.display = 'block';
+                    document.getElementById('login-code').focus();
+                }
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.textContent = 'войти';
+                document.getElementById('login-error').textContent = 'Ошибка соединения';
+                document.getElementById('login-error').style.display = 'block';
+            });
+        }
+
+        function verifyCode() {
+            const code = document.getElementById('login-code').value.trim();
+            if (!code || code.length !== 6) return;
+            const btn = document.getElementById('verify-btn');
+            btn.disabled = true;
+            btn.textContent = 'проверка...';
+
+            fetch('/api/admin/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code })
+            })
+            .then(r => r.json().then(data => ({ status: r.status, data })))
+            .then(({ status, data }) => {
+                btn.disabled = false;
+                btn.textContent = 'подтвердить';
+
+                if (status !== 200) {
+                    document.getElementById('code-error').textContent = data.error || 'Ошибка';
+                    document.getElementById('code-error').style.display = 'block';
+                    return;
+                }
+
+                token = data.token;
+                localStorage.setItem('adminToken', token);
+                document.getElementById('login-box').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                loadStats(); loadPosts(); loadBans();
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.textContent = 'подтвердить';
+                document.getElementById('code-error').textContent = 'Ошибка соединения';
+                document.getElementById('code-error').style.display = 'block';
+            });
         }
 
         function loadStats() {
