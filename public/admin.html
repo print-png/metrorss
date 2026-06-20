@@ -288,8 +288,8 @@
                         if (device && !confirm('Забанить device ' + device.substring(0, 30) + '… на 24ч?')) return;
                         const duration = 86400000;
                         const until = Date.now() + duration;
-                        if (ip) api('/api/admin/ban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip, reason: 'быстрый бан из админки', until }) }).then(() => { loadBans(); loadStats(); });
-                        if (device) api('/api/admin/ban-device', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: device, reason: 'быстрый бан из админки', until }) }).then(() => { loadDeviceBans(); loadStats(); });
+                        if (ip) api('/api/admin/ban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip, until }) }).then(() => { loadBans(); loadStats(); });
+                        if (device) api('/api/admin/ban-device', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: device, until }) }).then(() => { loadDeviceBans(); loadStats(); });
                     });
                 });
             }).catch(() => { el.innerHTML = '<p style="color:#e51400;">ошибка загрузки</p>'; });
@@ -593,8 +593,8 @@
                         if (ip && !confirm('Забанить IP ' + ip + ' на 24ч?')) return;
                         if (device && !confirm('Забанить device ' + device.substring(0,30) + '… на 24ч?')) return;
                         const until = Date.now() + 86400000;
-                        if (ip) api('/api/admin/ban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip, reason: 'быстрый бан из админки', until }) }).then(() => { loadBans(); loadStats(); });
-                        if (device) api('/api/admin/ban-device', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: device, reason: 'быстрый бан из админки', until }) }).then(() => { loadDeviceBans(); loadStats(); });
+                        if (ip) api('/api/admin/ban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip, until }) }).then(() => { loadBans(); loadStats(); });
+                        if (device) api('/api/admin/ban-device', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: device, until }) }).then(() => { loadDeviceBans(); loadStats(); });
                     });
                 });
             }).catch(() => { el.innerHTML = '<p style="color:#e51400;">ошибка поиска</p>'; });
