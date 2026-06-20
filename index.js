@@ -87,10 +87,6 @@ async function getPosts() {
 }
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-if (!ADMIN_PASSWORD) {
-    console.error('FATAL: ADMIN_PASSWORD env var not set');
-    process.exit(1);
-}
 
 // --- RATE LIMITER (in-memory) ---
 
