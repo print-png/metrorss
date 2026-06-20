@@ -17,16 +17,8 @@
         body { background: var(--win-bg); color: var(--win-fg); font-family: 'Segoe WP', 'Segoe UI', sans-serif; padding: calc(40px + env(safe-area-inset-top, 0px)) 24px 40px 24px; perspective: 1000px; }
         .page-header { margin-bottom: 35px; }
         .page-title { font-size: 54px; font-weight: 200; letter-spacing: -2px; opacity: 0.95; display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
-        .about-btn { background: none; border: 1px solid #333; color: var(--accent); padding: 4px 12px; font-size: 13px; cursor: pointer; font-family: inherit; text-transform: lowercase; transition: all 0.2s; }
-        .about-btn:hover { border-color: var(--accent); color: #fff; background: var(--accent); }
-        .about-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 24px; }
-        .about-modal.open { display: flex; }
-        .about-content { background: #0a0a0a; border: 2px solid var(--accent); max-width: 600px; width: 100%; max-height: 80vh; overflow-y: auto; padding: 32px; animation: wpListIn 0.4s var(--ease-wp) both; }
-        .about-content h2 { font-size: 28px; font-weight: 200; text-transform: lowercase; color: var(--accent); margin-bottom: 20px; }
-        .about-content p { font-size: 15px; font-weight: 300; color: #ccc; line-height: 1.7; margin-bottom: 16px; }
-        .about-content h3 { font-size: 18px; font-weight: 300; color: var(--accent); margin: 24px 0 12px; text-transform: lowercase; }
-        .about-close { background: var(--accent); border: 2px solid var(--accent); color: white; padding: 10px 25px; font-size: 15px; font-weight: 400; cursor: pointer; text-transform: lowercase; transition: all 0.15s ease; margin-top: 24px; display: inline-block; }
-        .about-close:hover { background: transparent; color: var(--accent); }
+        .about-link { color: var(--accent); text-decoration: none; font-size: 13px; text-transform: lowercase; border: 1px solid #333; padding: 4px 12px; transition: all 0.2s; }
+        .about-link:hover { border-color: var(--accent); color: #fff; background: var(--accent); }
         .page-subtitle { font-size: 16px; color: var(--accent); text-transform: uppercase; font-weight: 600; letter-spacing: 1px; }
         .wp-box { border: 2px solid var(--accent); padding: 20px; margin-bottom: 40px; background: #0a0a0a; animation: wpListIn 0.5s var(--ease-wp) both; }
         .wp-box h3 { font-size: 24px; font-weight: 200; text-transform: lowercase; margin-bottom: 15px; }
@@ -64,7 +56,7 @@
 <body>
     <div class="page-header">
         <div class="page-subtitle">создай свою новость)</div>
-        <div class="page-title">metroRSS <button class="about-btn" id="about-btn">что это?</button></div>
+        <div class="page-title">metroRSS <a href="/help.html" class="about-link">что это?</a></div>
     </div>
     <div class="wp-box">
         <h3>создать новость</h3>
@@ -76,26 +68,6 @@
     </div>
     <div class="feed-header">текущие публикации</div>
     <div id="feed"></div>
-    <div class="about-modal" id="about-modal">
-        <div class="about-content">
-            <h2>metroRSS</h2>
-            <p>metroRSS — это минималистичная лента новостей в стиле Windows Phone / Metro UI.</p>
-            
-            <h3>как это работает</h3>
-            <p>Любой может опубликовать новость — достаточно ввести заголовок и текст в форму выше. Поддерживается базовый HTML: <code>&lt;p&gt;</code>, <code>&lt;b&gt;</code>, <code>&lt;i&gt;</code>.</p>
-            <p>Все публикации отображаются в обратном хронологическом порядке (новые сверху).</p>
-            
-            <h3>взаимодействие</h3>
-            <p><b>Лайки</b> — нажимайте на иконку сердца под постом, чтобы поставить/убрать лайк.</p>
-            <p><b>Комментарии</b> — нажимайте на иконку пузыря, чтобы открыть комментарии. Там можно читать и писать свои.</p>
-            
-            <h3>фишки</h3>
-            <p>Карточки постов и форма создания имеют 3D-эффект при наведении/тапе — наклоняются вслед за курсором/пальцем.</p>
-            <p>Всё работает без авторизации, анонимно и максимально просто.</p>
-            
-            <button class="about-close" id="about-close">понятно, закрыть</button>
-        </div>
-    </div>
     <script src="/script.js"></script>
 </body>
 </html>

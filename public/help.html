@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>metroRSS — что это?</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.png">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        :root {
+            --win-bg: #000000;
+            --win-fg: #ffffff;
+            --accent: #880015;
+            --ease-wp: cubic-bezier(0.1, 0.9, 0.2, 1);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+        body { background: var(--win-bg); color: var(--win-fg); font-family: 'Segoe WP', 'Segoe UI', sans-serif; padding: calc(40px + env(safe-area-inset-top, 0px)) 24px 40px 24px; perspective: 1000px; }
+        .page-header { margin-bottom: 35px; }
+        .page-title { font-size: 54px; font-weight: 200; letter-spacing: -2px; opacity: 0.95; }
+        .page-subtitle { font-size: 16px; color: var(--accent); text-transform: uppercase; font-weight: 600; letter-spacing: 1px; }
+        .wp-box { border: 2px solid var(--accent); padding: 20px; margin-bottom: 40px; background: #0a0a0a; animation: wpListIn 0.5s var(--ease-wp) both; }
+        .back-link { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); text-decoration: none; font-size: 15px; font-weight: 400; text-transform: lowercase; margin-bottom: 24px; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.7; }
+        .back-link .material-icons { font-size: 20px; }
+        .help-content { animation: wpListIn 0.5s var(--ease-wp) both; }
+        .help-content h2 { font-size: 28px; font-weight: 200; text-transform: lowercase; color: var(--accent); margin-bottom: 20px; }
+        .help-content p { font-size: 15px; font-weight: 300; color: #ccc; line-height: 1.7; margin-bottom: 16px; }
+        .help-content h3 { font-size: 18px; font-weight: 300; color: var(--accent); margin: 24px 0 12px; text-transform: lowercase; }
+        .help-content code { background: #111; padding: 2px 6px; font-size: 13px; color: var(--accent); }
+        .help-content b { color: #fff; font-weight: 400; }
+        @keyframes wpListIn { from { transform: translateX(50px) rotateY(-15deg); opacity: 0; } to { transform: translateX(0) rotateY(0deg); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <a href="/" class="back-link"><i class="material-icons">arrow_back</i>назад к ленте</a>
+        <div class="page-subtitle">metroRSS</div>
+        <div class="page-title">что это?</div>
+    </div>
+    <div class="wp-box help-content">
+        <h2>metroRSS</h2>
+        <p>metroRSS — это минималистичная лента новостей в стиле Windows Phone / Metro UI.</p>
+        
+        <h3>как это работает</h3>
+        <p>Любой может опубликовать новость — достаточно ввести заголовок и текст в форме на главной странице. Поддерживается базовый HTML: <code>&lt;p&gt;</code>, <code>&lt;b&gt;</code>, <code>&lt;i&gt;</code>.</p>
+        <p>Все публикации отображаются в обратном хронологическом порядке (новые сверху).</p>
+        
+        <h3>взаимодействие</h3>
+        <p><b>Лайки</b> — нажимайте на иконку сердца под постом, чтобы поставить/убрать лайк.</p>
+        <p><b>Комментарии</b> — нажимайте на иконку пузыря, чтобы открыть комментарии. Там можно читать и писать свои.</p>
+        
+        <h3>фишки</h3>
+        <p>Карточки постов и форма создания имеют 3D-эффект при наведении/тапе — наклоняются вслед за курсором/пальцем.</p>
+        <p>Всё работает без авторизации, анонимно и максимально просто.</p>
+    </div>
+</body>
+</html>

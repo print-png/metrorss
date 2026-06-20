@@ -187,15 +187,3 @@ document.addEventListener('pointerdown', (e) => {
 });
 
 loadNews();
-
-document.getElementById('about-btn').addEventListener('click', () => {
-    document.getElementById('about-modal').classList.add('open');
-});
-document.getElementById('about-close').addEventListener('click', () => {
-    document.getElementById('about-modal').classList.remove('open');
-});
-document.getElementById('about-modal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('about-modal')) {
-        document.getElementById('about-modal').classList.remove('open');
-    }
-});
