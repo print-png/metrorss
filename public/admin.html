@@ -41,6 +41,12 @@
         .ban-item .ip { font-size: 14px; color: var(--accent); font-weight: 300; }
         .ban-item .reason { font-size: 12px; color: #999; margin-top: 4px; }
         .del-btn, .unban-btn { background: none; border: 1px solid #e51400; color: #e51400; padding: 4px 12px; font-size: 12px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
+        .danger-zone { border: 2px solid #e51400; padding: 20px; margin-top: 30px; background: #0a0505; }
+        .danger-zone h4 { color: #e51400; font-size: 18px; font-weight: 200; text-transform: lowercase; margin-bottom: 12px; }
+        .danger-zone .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+        .danger-btn { background: #e51400; border: 1px solid #e51400; color: white; padding: 8px 16px; font-size: 13px; cursor: pointer; font-family: inherit; text-transform: lowercase; transition: all 0.2s; }
+        .danger-btn:hover { background: transparent; color: #e51400; }
+        .danger-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .del-btn:hover, .unban-btn:hover { background: #e51400; color: white; }
         .ban-form { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
         .ban-form input { flex: 1; min-width: 120px; background: #111; color: #fff; border: 1px solid #333; padding: 8px 12px; font-size: 13px; font-family: inherit; user-select: text; }
@@ -109,6 +115,15 @@
             </div>
             <div id="devices-list"></div>
             <p style="color:#555;font-size:12px;margin-top:12px;">узнать deviceId юзера: он возвращается в ответе при бане (403) или спроси у юзера — открой F12 → localStorage → ключ <code style="background:#111;padding:1px 4px;">_did</code><br>твой текущий deviceId: <span id="my-device-id" style="color:var(--accent);font-size:11px;"></span></p>
+        </div>
+
+        <div class="danger-zone">
+            <h4>⚠️ опасная зона</h4>
+            <div class="btn-row">
+                <button class="danger-btn" id="btn-clear-posts">🗑 очистить все посты</button>
+                <button class="danger-btn" id="btn-unban-all">🔓 снять все баны IP</button>
+                <button class="danger-btn" id="btn-unban-all-devices">🔓 снять все баны device</button>
+            </div>
         </div>
     </div>
 
@@ -380,6 +395,31 @@
                 btn.classList.add('active');
                 document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
             });
+        });
+
+        document.getElementById('btn-clear-posts').addEventListener('click', () => {
+            if (!confirm('Точно удалить ВСЕ посты? Это необратимо.')) return;
+            if (!confirm('Ещё раз: все посты будут безвозвратно удалены. Продолжить?')) return;
+            const btn = document.getElementById('btn-clear-posts');
+            btn.disabled = true; btn.textContent = 'удаляю...';
+            api('/api/admin/posts', { method: 'DELETE' })
+                .then(() => { loadPosts(); loadStats(); btn.disabled = false; btn.textContent = '🗑 очистить все посты'; });
+        });
+
+        document.getElementById('btn-unban-all').addEventListener('click', () => {
+            if (!confirm('Снять все IP-баны?')) return;
+            const btn = document.getElementById('btn-unban-all');
+            btn.disabled = true; btn.textContent = 'снимаю...';
+            api('/api/admin/bans', { method: 'DELETE' })
+                .then(() => { loadBans(); loadStats(); btn.disabled = false; btn.textContent = '🔓 снять все баны IP'; });
+        });
+
+        document.getElementById('btn-unban-all-devices').addEventListener('click', () => {
+            if (!confirm('Снять все баны device?')) return;
+            const btn = document.getElementById('btn-unban-all-devices');
+            btn.disabled = true; btn.textContent = 'снимаю...';
+            api('/api/admin/banned-devices', { method: 'DELETE' })
+                .then(() => { loadDeviceBans(); loadStats(); btn.disabled = false; btn.textContent = '🔓 снять все баны device'; });
         });
     </script>
 </body>

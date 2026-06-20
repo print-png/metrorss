@@ -236,6 +236,33 @@ app.delete('/api/admin/posts/:id', adminAuth, async (req, res) => {
     }
 });
 
+app.delete('/api/admin/posts', adminAuth, async (req, res) => {
+    try {
+        await kv.set('posts', []);
+        res.json({ ok: true, cleared: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Clear failed' });
+    }
+});
+
+app.delete('/api/admin/bans', adminAuth, async (req, res) => {
+    try {
+        await kv.set('blockedIPs', {});
+        res.json({ ok: true, cleared: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Clear failed' });
+    }
+});
+
+app.delete('/api/admin/banned-devices', adminAuth, async (req, res) => {
+    try {
+        await kv.set('blockedDevices', {});
+        res.json({ ok: true, cleared: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Clear failed' });
+    }
+});
+
 app.get('/api/admin/banned', adminAuth, async (req, res) => {
     try {
         const blockedIPs = (await kv.get('blockedIPs')) || {};
