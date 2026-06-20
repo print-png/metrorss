@@ -52,22 +52,21 @@
     <div id="feed"></div>
     <script>
         const API = "/api/posts";
-        const RSS = "/rss";
         
         async function loadNews() {
             const feed = document.getElementById('feed');
             feed.innerHTML = '<img class="loader-gif" src="https://media.tenor.com/ptkoPmx8XAkAAAAi/windows-loading.gif">';
             try {
-                const res = await fetch(RSS);
+                const res = await fetch(API);
                 if (!res.ok) throw new Error('Ошибка сервера (' + res.status + ')');
-                const xmlText = await res.text();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlText, "application/xml");
-                const items = xmlDoc.querySelectorAll("item");
-                if (items.length === 0) { feed.innerHTML = '<p style="color:#666;font-style:italic;font-weight:300;">лента новостей пуста.</p>'; return; }
-                feed.innerHTML = Array.from(items).map((item, i) => {
-                    const title = item.querySelector("title")?.textContent?.toLowerCase() || 'без заголовка';
-                    const text = item.querySelector("description")?.textContent || '';
+                const data = await res.json();
+                if (!Array.isArray(data) || data.length === 0) { 
+                    feed.innerHTML = '<p style="color:#666;font-style:italic;font-weight:300;">лента новостей пуста.</p>'; 
+                    return; 
+                }
+                feed.innerHTML = data.map((p, i) => {
+                    const title = p && p.title ? String(p.title).toLowerCase() : 'без заголовка';
+                    const text = p && p.text ? String(p.text) : '';
                     return '<div class="post" style="animation-delay:' + (i*0.05) + 's"><h2>' + title + '</h2><p>' + text + '</p></div>';
                 }).join('');
             } catch (e) {
