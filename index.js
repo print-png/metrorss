@@ -97,12 +97,11 @@ setInterval(() => {
 }, 30000);
 
 function generateCaptcha() {
-    const words = ['метро', 'новость', 'пароль', 'капча', 'привет', 'работа', 'лента', 'пост'];
+    const words = ['metrorss', 'новость', 'капча'];
     const word = words[Math.floor(Math.random() * words.length)];
-    const answer = word.split('').reverse().join('');
     const token = randomToken();
-    captchaStore.set(token, { answer, exp: Date.now() + 120000 });
-    return { token, question: `напиши «${word}» наоборот` };
+    captchaStore.set(token, { answer: word, exp: Date.now() + 120000 });
+    return { token, question: `введи слово «${word}»` };
 }
 
 app.get('/api/captcha', (req, res) => {
