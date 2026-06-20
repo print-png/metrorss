@@ -66,6 +66,15 @@ async function getPosts() {
 
 // --- ROUTES ---
 
+app.get('/api/health', async (req, res) => {
+    let kvOk = false;
+    try {
+        await kv.get('health');
+        kvOk = true;
+    } catch (e) {}
+    res.json({ ok: true, kv: kvOk });
+});
+
 app.get('/api/posts', async (req, res) => {
     try {
         const posts = await getPosts();
