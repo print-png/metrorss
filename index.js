@@ -97,9 +97,10 @@ setInterval(() => {
 }, 30000);
 
 function generateCaptcha() {
-    const a = Math.floor(Math.random() * 20) + 1;
-    const b = Math.floor(Math.random() * 20) + 1;
+    let a = Math.floor(Math.random() * 20) + 1;
+    let b = Math.floor(Math.random() * 20) + 1;
     const op = Math.random() > 0.5 ? '+' : '-';
+    if (op === '-') { if (a < b) [a, b] = [b, a]; }
     const answer = op === '+' ? a + b : a - b;
     const token = randomToken();
     captchaStore.set(token, { answer, exp: Date.now() + 120000 });
