@@ -1,1 +1,6 @@
-﻿{"rewrites":[{"source":"/rss","destination":"/api/rss"}]}
+﻿{
+  "version": 2,
+  "rewrites": [
+    { "source": "/rss", "destination": "/api/rss" }
+  ]
+}
