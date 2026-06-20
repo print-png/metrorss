@@ -32,6 +32,22 @@
         .post h2 { font-size: 22px; font-weight: 300; line-height: 1.2; text-transform: lowercase; color: var(--accent); margin-bottom: 8px; }
         .post p { font-size: 15px; font-weight: 300; color: #ccc; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
         .loader-gif { width: 30px; height: 30px; display: block; margin: 20px auto; }
+        .bar { display: flex; gap: 16px; margin-top: 12px; border-top: 1px solid #222; padding-top: 10px; }
+        .like-btn, .cmt-btn { background: none; border: 1px solid #333; color: #fff; padding: 4px 12px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; transition: all 0.2s; }
+        .like-btn:hover, .cmt-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .like-btn.liked { border-color: var(--accent); color: var(--accent); animation: pulse 0.3s ease; }
+        .like-btn .material-icons, .cmt-btn .material-icons { font-size: 16px; }
+        .lc { min-width: 12px; text-align: left; }
+        .comments { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+        .comments.open { max-height: 500px; overflow-y: auto; margin-top: 10px; }
+        .c { font-size: 13px; color: #999; padding: 4px 0; border-bottom: 1px solid #181818; }
+        .cd { color: #555; margin-right: 8px; font-size: 11px; }
+        .cmt-form { display: flex; gap: 6px; margin-top: 8px; }
+        .cmt-input { flex: 1; display: block; background: #111; color: #fff; border: 1px solid #333; padding: 6px 10px; font-size: 13px; font-family: inherit; user-select: text; }
+        .cmt-input:focus { outline: none; border-color: var(--accent); }
+        .cmt-send { background: var(--accent); border: none; color: #fff; padding: 4px 10px; cursor: pointer; display: flex; align-items: center; }
+        .cmt-send .material-icons { font-size: 16px; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
         @keyframes wpListIn { from { transform: translateX(50px) rotateY(-15deg); opacity: 0; } to { transform: translateX(0) rotateY(0deg); opacity: 1; } }
     </style>
 </head>

@@ -1,0 +1,130 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>metroRSS</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.png">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        :root {
+            --win-bg: #000000;
+            --win-fg: #ffffff;
+            --accent: #880015;
+            --ease-wp: cubic-bezier(0.1, 0.9, 0.2, 1);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+        body { background: var(--win-bg); color: var(--win-fg); font-family: 'Segoe WP', 'Segoe UI', sans-serif; padding: calc(40px + env(safe-area-inset-top, 0px)) 24px 40px 24px; perspective: 1000px; }
+        .page-header { margin-bottom: 35px; }
+        .page-title { font-size: 54px; font-weight: 200; letter-spacing: -2px; opacity: 0.95; }
+        .page-subtitle { font-size: 16px; color: var(--accent); text-transform: uppercase; font-weight: 600; letter-spacing: 1px; }
+        .wp-box { border: 2px solid var(--accent); padding: 20px; margin-bottom: 40px; background: #0a0a0a; animation: wpListIn 0.5s var(--ease-wp) both; }
+        .wp-box h3 { font-size: 24px; font-weight: 200; text-transform: lowercase; margin-bottom: 15px; }
+        input, textarea { display: block; width: 100%; margin-bottom: 15px; background: #111111; color: #fff; border: 2px solid #444444; padding: 12px; font-size: 16px; font-family: inherit; font-weight: 300; transition: border-color 0.2s; user-select: text; }
+        input:focus, textarea:focus { outline: none; border-color: var(--win-fg); }
+        textarea { height: 160px; resize: vertical; }
+        .wp-btn { background: var(--accent); border: 2px solid var(--accent); color: white; padding: 10px 25px; font-size: 15px; font-weight: 400; cursor: pointer; text-transform: lowercase; transition: all 0.15s ease; display: inline-flex; align-items: center; gap: 8px; }
+        .wp-btn:hover { background: transparent; color: var(--accent); }
+        .wp-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .feed-header { font-size: 32px; font-weight: 200; text-transform: lowercase; margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 10px; }
+        #feed { display: flex; flex-direction: column; gap: 12px; }
+        .post { border: 2px solid #222; background: #050505; padding: 18px; animation: wpListIn 0.6s var(--ease-wp) both; }
+        .post h2 { font-size: 22px; font-weight: 300; line-height: 1.2; text-transform: lowercase; color: var(--accent); margin-bottom: 8px; }
+        .post p { font-size: 15px; font-weight: 300; color: #ccc; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+        .loader-gif { width: 30px; height: 30px; display: block; margin: 20px auto; }
+        @keyframes wpListIn { from { transform: translateX(50px) rotateY(-15deg); opacity: 0; } to { transform: translateX(0) rotateY(0deg); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <div class="page-subtitle">создай свою новость)</div>
+        <div class="page-title">metroRSS</div>
+    </div>
+    <div class="wp-box">
+        <h3>создать новость</h3>
+        <input id="t" placeholder="заголовок новости">
+        <textarea id="d" placeholder="текст новости (поддерживает базовый html: <p>, <b>, <i>)"></textarea>
+        <button class="wp-btn" id="submit-btn">
+            <i class="material-icons" style="font-size: 18px;">send</i> опубликовать
+        </button>
+    </div>
+    <div class="feed-header">текущие публикации</div>
+    <div id="feed"></div>
+    <script>
+        const API = "/api/posts";
+        
+        async function loadNews() {
+            const feed = document.getElementById('feed');
+            feed.innerHTML = '<img class="loader-gif" src="https://media.tenor.com/ptkoPmx8XAkAAAAi/windows-loading.gif">';
+            try {
+                const res = await fetch(API);
+                if (!res.ok) throw new Error('Ошибка сервера (' + res.status + ')');
+                const data = await res.json();
+                if (!Array.isArray(data) || data.length === 0) { 
+                    feed.innerHTML = '<p style="color:#666;font-style:italic;font-weight:300;">лента новостей пуста.</p>'; 
+                    return; 
+                }
+                feed.innerHTML = data.map((p, i) => {
+                    const title = p && p.title ? String(p.title).toLowerCase() : 'без заголовка';
+                    const text = p && p.text ? String(p.text) : '';
+                    return '<div class="post" style="animation-delay:' + (i*0.05) + 's"><h2>' + title + '</h2><p>' + text + '</p></div>';
+                }).join('');
+            } catch (e) {
+                feed.innerHTML = '<p style="color:#e51400;font-weight:300;">не удалось загрузить ленту: ' + e.message + '</p>';
+            }
+        }
+
+        async function postNews() {
+            const titleEl = document.getElementById('t');
+            const textEl = document.getElementById('d');
+            const btn = document.getElementById('submit-btn');
+            
+            if (!titleEl.value.trim() || !textEl.value.trim()) {
+                return alert('Заполните все поля!');
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = 'публикация...';
+            
+            try {
+                const res = await fetch(API, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ title: titleEl.value, text: textEl.value })
+                });
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    throw new Error(data.error || 'Сервер ответил ошибкой: ' + res.status);
+                }
+                
+                titleEl.value = '';
+                textEl.value = '';
+                await loadNews();
+            } catch (e) {
+                alert('Ошибка при публикации: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="material-icons" style="font-size:18px;">send</i> опубликовать';
+            }
+        }
+
+        document.getElementById('submit-btn').addEventListener('click', postNews);
+
+        document.addEventListener('pointerdown', (e) => {
+            const target = e.target.closest('.wp-btn, .post, .wp-box');
+            if (!target) return;
+            const rect = target.getBoundingClientRect();
+            const rotateY = ((e.clientX - rect.left - rect.width / 2) / (rect.width / 2)) * 8;
+            const rotateX = -((e.clientY - rect.top - rect.height / 2) / (rect.height / 2)) * 8;
+            target.style.transform = 'perspective(600px) scale(0.97) rotateX(' + rotateX + 'deg) rotateY(' + rotateY + 'deg)';
+            target.style.transition = 'transform 0.05s ease-out';
+            const reset = () => { target.style.transform = ''; target.style.transition = 'transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1)'; document.removeEventListener('pointerup', reset); target.removeEventListener('pointerleave', reset); };
+            document.addEventListener('pointerup', reset);
+            target.addEventListener('pointerleave', reset);
+        });
+
+        loadNews();
+    </script>
+</body>
+</html>

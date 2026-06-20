@@ -112,7 +112,9 @@ app.post('/api/posts', async (req, res) => {
             id: Date.now().toString(),
             title: sanitize(cleanTitle.substring(0, 100)),
             text: sanitize(cleanText.substring(0, 2000)),
-            date: new Date().toUTCString()
+            date: new Date().toUTCString(),
+            likes: 0,
+            comments: []
         };
 
         posts.unshift(newPost);
@@ -127,7 +129,44 @@ app.post('/api/posts', async (req, res) => {
     }
 });
 
-app.get('/rss', async (req, res) => {
+app.post('/api/posts/:id/like', async (req, res) => {
+    try {
+        const posts = await getPosts();
+        const post = posts.find(p => p.id === req.params.id);
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+        post.likes = (post.likes || 0) + 1;
+        await kv.set('posts', posts.slice(0, 500));
+        res.json({ likes: post.likes });
+    } catch (e) {
+        res.status(500).json({ error: 'Like failed' });
+    }
+});
+
+app.post('/api/posts/:id/comments', async (req, res) => {
+    try {
+        const { text } = req.body;
+        if (typeof text !== 'string' || !text.trim()) {
+            return res.status(400).json({ error: 'Invalid comment' });
+        }
+        const commentText = text.trim().substring(0, 500);
+        if (containsBanWords(commentText)) {
+            return res.status(403).json({ error: 'Forbidden words' });
+        }
+        const posts = await getPosts();
+        const post = posts.find(p => p.id === req.params.id);
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+        if (!post.comments) post.comments = [];
+        post.comments.push({
+            id: Date.now().toString(),
+            text: sanitize(commentText),
+            date: new Date().toUTCString()
+        });
+        await kv.set('posts', posts.slice(0, 500));
+        res.status(201).json(post.comments);
+    } catch (e) {
+        res.status(500).json({ error: 'Comment failed' });
+    }
+});
     try {
         const posts = await getPosts();
         res.set('Content-Type', 'application/rss+xml; charset=utf-8');
