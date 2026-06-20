@@ -156,14 +156,15 @@ async function postNews() {
         const data = await res.json();
         
         if (!res.ok) {
-            throw new Error(data.error || 'Сервер ответил ошибкой: ' + res.status);
+            const msg = data.reason ? data.error + ' (' + data.reason + ')' : data.error;
+            throw new Error(msg || 'Сервер ответил ошибкой: ' + res.status);
         }
         
         titleEl.value = '';
         textEl.value = '';
         await loadNews();
     } catch (e) {
-        alert('Ошибка при публикации: ' + e.message);
+        alert(e.message);
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="material-icons" style="font-size:18px;">send</i> опубликовать';
