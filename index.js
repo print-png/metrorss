@@ -172,6 +172,16 @@ app.use(async (req, res, next) => {
     next();
 });
 
+// --- BLOCK CURL ---
+
+app.use((req, res, next) => {
+    const ua = (req.headers['user-agent'] || '').toLowerCase();
+    if (ua.includes('curl') || ua.includes('wget') || ua.includes('httpie') || ua.includes('python-requests') || ua.includes('go-http-client') || ua.includes('okhttp')) {
+        return res.status(403).json({ error: 'Браузеры и приложения только' });
+    }
+    next();
+});
+
 // --- ADMIN AUTH ROUTES (no session required) ---
 
 app.post('/api/admin/login', async (req, res) => {
