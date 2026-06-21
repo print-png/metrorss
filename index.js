@@ -5,14 +5,8 @@ const net = require('net');
 const { kv } = require('@vercel/kv');
 
 const app = express();
-app.use(helmet());
 app.use(express.json({ limit: '10kb' }));
-
-// CSP headers
-app.use((req, res, next) => {
-    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://metrorss.vercel.app; frame-ancestors 'none'");
-    next();
-});
+app.use(helmet());
 
 // Serve static files from public/
 app.use(express.static(path.join(__dirname, 'public')));
@@ -941,12 +935,6 @@ app.get('/rss', async (req, res) => {
         console.error('/rss error:', e);
         res.status(500).send('RSS error');
     }
-});
-
-// --- GLOBAL ERROR HANDLER ---
-app.use((err, req, res, next) => {
-    console.error('Unhandled error:', err);
-    res.status(500).json({ error: 'Internal error' });
 });
 
 module.exports = app;
