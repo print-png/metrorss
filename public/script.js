@@ -197,23 +197,36 @@ function toggleComments(commentsEl) {
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function copyDeviceId(id) {
-    const ta = document.createElement('textarea');
-    ta.value = id; ta.style.position = 'fixed'; ta.style.left = '-9999px';
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); } catch(e) {}
-    ta.remove();
-    let toast = document.getElementById('toast');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'toast';
-        toast.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:#744da9;color:#fff;padding:10px 24px;font-size:14px;border-radius:4px;opacity:0;z-index:999;pointer-events:none;transition:opacity 0.25s ease;';
-        document.body.appendChild(toast);
+    function done() {
+        let toast = document.getElementById('toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'toast';
+            toast.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:#744da9;color:#fff;padding:10px 24px;font-size:14px;border-radius:4px;opacity:0;z-index:999;pointer-events:none;transition:opacity 0.25s ease;';
+            document.body.appendChild(toast);
+        }
+        toast.textContent = 'скопировано';
+        toast.style.opacity = '1';
+        clearTimeout(toast._t);
+        toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
     }
-    toast.textContent = 'скопировано';
-    toast.style.opacity = '1';
-    clearTimeout(toast._t);
-    toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(id).then(done).catch(() => fallback());
+    } else {
+        fallback();
+    }
+    function fallback() {
+        const ta = document.createElement('textarea');
+        ta.value = id;
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch(e) {}
+        ta.remove();
+        if (ok) { done(); return; }
+        prompt('Скопируй deviceId вручную (Ctrl+C):', id);
+    }
 }
 
 async function loadNews(silent) {
