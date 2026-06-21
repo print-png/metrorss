@@ -42,7 +42,7 @@ function getClientIP(req) {
 
 // --- HELPERS ---
 
-const banWords = ['crypto', 'sparkwtf', '@sparkwtf', 'casino', 'slots', 'azino', 'азино', 'виннер', 't.me', 'telegram.me'];
+const banWords = ['crypto', 'sparkwtf', '@sparkwtf', 'casino', 'slots', 'azino', 'азино', 'виннер', 't.me', 'telegram.me', '@xukuvu'];
 
 async function containsBanWords(text) {
     const lowerText = text.toLowerCase();
@@ -592,6 +592,11 @@ app.post('/api/posts', async (req, res) => {
 
         if (await containsBanWords(cleanTitle) || await containsBanWords(cleanText)) {
             return res.status(403).json({ error: 'Forbidden words detected' });
+        }
+
+        const spamTokens = cleanTitle.split(/\s+/).filter(t => t.length >= 3 && /^@?[a-zA-Z0-9]+$/.test(t));
+        if (spamTokens.length >= 3) {
+            return res.status(403).json({ error: 'Спам-детект' });
         }
 
         const posts = await getPosts();
