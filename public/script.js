@@ -6,6 +6,13 @@ function hashStr(s) {
     return Math.abs(h).toString(36);
 }
 
+async function sha256(s) {
+    try {
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(36).padStart(2, '0')).join('');
+    } catch(e) { return null; }
+}
+
 function getCanvasFP() {
     try {
         const c = document.createElement('canvas');
@@ -53,8 +60,44 @@ function getAudioFP() {
     } catch(e) { return Promise.resolve(''); }
 }
 
-function getExtraFP() {
+function getConnectionFP() {
+    try {
+        const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if (!c) return '';
+        return [c.effectiveType || '', c.downlink || '', c.rtt || '', c.saveData ? '1' : '0'].join('|');
+    } catch(e) { return ''; }
+}
+
+function getOrientationFP() {
+    try {
+        const o = screen.orientation || screen.mozOrientation || screen.msOrientation;
+        return o ? o.type + '|' + o.angle : '';
+    } catch(e) { return ''; }
+}
+
+function getCSSFP() {
+    try {
+        const features = ['backdrop-filter', 'grid', 'sticky', 'transform-style:preserve-3d', 'mix-blend-mode', 'clip-path', 'aspect-ratio', 'subgrid'];
+        return features.map(f => CSS.supports(f) ? '1' : '0').join('');
+    } catch(e) { return ''; }
+}
+
+async function getBatteryFP() {
+    try {
+        const b = await navigator.getBattery();
+        return [b.level, b.charging ? '1' : '0', b.chargingTime, b.dischargingTime].join('|');
+    } catch(e) { return ''; }
+}
+
+function getSignalString() {
     const parts = [
+        navigator.userAgent,
+        screen.width + 'x' + screen.height,
+        screen.colorDepth,
+        screen.pixelDepth,
+        screen.availWidth + 'x' + screen.availHeight,
+        navigator.language,
+        Intl.DateTimeFormat().resolvedOptions().timeZone,
         navigator.platform,
         navigator.hardwareConcurrency,
         navigator.deviceMemory || '',
@@ -62,23 +105,46 @@ function getExtraFP() {
         navigator.languages ? navigator.languages.join(',') : '',
         navigator.plugins ? navigator.plugins.length : '',
         navigator.mimeTypes ? navigator.mimeTypes.length : '',
-        screen.availWidth + 'x' + screen.availHeight,
-        screen.pixelDepth,
         navigator.productSub || '',
+        navigator.webdriver || '',
+        navigator.cookieEnabled,
+        navigator.doNotTrack || '',
         getCanvasFP(),
-        getWebGLFP()
+        getWebGLFP(),
+        getConnectionFP(),
+        getOrientationFP(),
+        getCSSFP()
     ];
     return parts.join('|');
 }
 
+let _cachedDID = null;
+
+async function generateDeviceID() {
+    const signals = getSignalString();
+    let h = await sha256(signals);
+    if (!h || h.length < 16) h = hashStr(signals);
+    const id = 'd3_' + h;
+    saveDeviceID(id);
+    _cachedDID = id;
+    return id;
+}
+
 function getDeviceID() {
+    if (_cachedDID) return _cachedDID;
     let id = localStorage.getItem('_did') || sessionStorage.getItem('_did') || getCookie('_did');
     if (!id) {
-        const extra = getExtraFP();
-        const base = [navigator.userAgent, screen.width + 'x' + screen.height, screen.colorDepth, navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone, navigator.hardwareConcurrency || ''].join('|');
-        id = 'd2_' + hashStr(base + '|' + extra);
+        const signals = getSignalString();
+        const h = hashStr(signals);
+        id = 'd2_' + h;
+        saveDeviceID(id);
     }
-    saveDeviceID(id);
+    _cachedDID = id;
+    getAudioFP().then(audioFP => {
+        if (!audioFP) return;
+        try { localStorage.setItem('_did_audio', audioFP); } catch(e) {}
+    });
+    generateDeviceID().catch(() => {});
     return id;
 }
 
@@ -97,11 +163,6 @@ function saveDeviceID(id) {
             };
         };
     } catch(e) {}
-    getAudioFP().then(audioFP => {
-        if (!audioFP) return;
-        const enhanced = 'd_' + hashStr(id.slice(2) + '|' + audioFP);
-        try { localStorage.setItem('_did_enh', enhanced); } catch(e) {}
-    });
 }
 
 function getCookie(n) {
@@ -120,6 +181,7 @@ window.fetch = function(url, opts = {}) {
     opts = opts || {};
     opts.headers = opts.headers || {};
     opts.headers['X-Device-ID'] = getDeviceID();
+    opts.headers['X-Device-Signals'] = getSignalString().slice(0, 2000);
     return origFetch.call(window, url, opts);
 };
 

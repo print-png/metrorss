@@ -185,6 +185,7 @@
             opts.headers = opts.headers || {};
             opts.headers['Authorization'] = 'Bearer ' + token;
             opts.headers['X-Device-ID'] = getMyDeviceId();
+            opts.headers['X-Device-Signals'] = getSignalString().slice(0, 2000);
             return fetch(path, opts).then(r => { if (!r.ok) throw new Error(); return r.json(); });
         }
 
@@ -365,6 +366,12 @@
             for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; }
             return Math.abs(h).toString(36);
         }
+        async function sha256(s) {
+            try {
+                const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+                return Array.from(new Uint8Array(buf)).map(b => b.toString(36).padStart(2, '0')).join('');
+            } catch(e) { return null; }
+        }
         function getCanvasFP() {
             try {
                 const c = document.createElement('canvas');
@@ -399,9 +406,52 @@
                 return ctx.startRendering().then(buf => hashStr(buf.getChannelData(0).slice(0, 1000).join('|'))).catch(() => '');
             } catch(e) { return Promise.resolve(''); }
         }
-        function getExtraFP() {
-            return [navigator.platform, navigator.hardwareConcurrency, navigator.deviceMemory || '', navigator.maxTouchPoints,
-                (navigator.languages || []).join(','), getCanvasFP(), getWebGLFP()].join('|');
+        function getConnectionFP() {
+            try {
+                const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                if (!c) return '';
+                return [c.effectiveType || '', c.downlink || '', c.rtt || '', c.saveData ? '1' : '0'].join('|');
+            } catch(e) { return ''; }
+        }
+        function getOrientationFP() {
+            try {
+                const o = screen.orientation || screen.mozOrientation || screen.msOrientation;
+                return o ? o.type + '|' + o.angle : '';
+            } catch(e) { return ''; }
+        }
+        function getCSSFP() {
+            try {
+                const features = ['backdrop-filter', 'grid', 'sticky', 'transform-style:preserve-3d', 'mix-blend-mode', 'clip-path', 'aspect-ratio', 'subgrid'];
+                return features.map(f => CSS.supports(f) ? '1' : '0').join('');
+            } catch(e) { return ''; }
+        }
+        function getSignalString() {
+            const parts = [
+                navigator.userAgent,
+                screen.width + 'x' + screen.height,
+                screen.colorDepth,
+                screen.pixelDepth,
+                screen.availWidth + 'x' + screen.availHeight,
+                navigator.language,
+                Intl.DateTimeFormat().resolvedOptions().timeZone,
+                navigator.platform,
+                navigator.hardwareConcurrency,
+                navigator.deviceMemory || '',
+                navigator.maxTouchPoints,
+                (navigator.languages || []).join(','),
+                navigator.plugins ? navigator.plugins.length : '',
+                navigator.mimeTypes ? navigator.mimeTypes.length : '',
+                navigator.productSub || '',
+                navigator.webdriver || '',
+                navigator.cookieEnabled,
+                navigator.doNotTrack || '',
+                getCanvasFP(),
+                getWebGLFP(),
+                getConnectionFP(),
+                getOrientationFP(),
+                getCSSFP()
+            ];
+            return parts.join('|');
         }
         function getCookie(n) {
             const m = document.cookie.match('(^|;)\\s*' + n + '\\s*=\\s*([^;]+)');
@@ -410,6 +460,16 @@
         function setCookie(n, v, days) {
             const d = new Date(); d.setTime(d.getTime() + days * 864e5);
             document.cookie = n + '=' + v + '; expires=' + d.toUTCString() + '; path=/; SameSite=Lax';
+        }
+        let _cachedAdminDID = null;
+        async function generateAdminDeviceID() {
+            const signals = getSignalString();
+            let h = await sha256(signals);
+            if (!h || h.length < 16) h = hashStr(signals);
+            const id = 'd3_' + h;
+            saveDeviceID(id);
+            _cachedAdminDID = id;
+            return id;
         }
         function saveDeviceID(id) {
             try { localStorage.setItem('_did', id); } catch(e) {}
@@ -426,21 +486,19 @@
                     };
                 };
             } catch(e) {}
-            getAudioFP().then(audioFP => {
-                if (!audioFP) return;
-                const enhanced = 'd_' + hashStr(id.slice(2) + '|' + audioFP);
-                try { localStorage.setItem('_did_enh', enhanced); } catch(e) {}
-            });
         }
         function getMyDeviceId() {
+            if (_cachedAdminDID) return _cachedAdminDID;
             try {
                 let id = localStorage.getItem('_did') || sessionStorage.getItem('_did') || getCookie('_did');
                 if (!id) {
-                    const extra = getExtraFP();
-                    const base = [navigator.userAgent, screen.width + 'x' + screen.height, screen.colorDepth, navigator.language, Intl.DateTimeFormat().resolvedOptions().timeZone].join('|');
-                    id = 'd_' + hashStr(base + '|' + extra);
+                    const signals = getSignalString();
+                    const h = hashStr(signals);
+                    id = 'd2_' + h;
+                    saveDeviceID(id);
                 }
-                saveDeviceID(id);
+                _cachedAdminDID = id;
+                generateAdminDeviceID().catch(() => {});
                 return id;
             } catch(e) { return 'ошибка'; }
         }

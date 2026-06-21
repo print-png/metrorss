@@ -162,11 +162,54 @@ async function adminAuth(req, res, next) {
 
 // --- DEVICE ID HELPER ---
 
+const crypto2 = require('crypto');
+
+function hashStr(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) { h = ((h << 5) - h) + s.charCodeAt(i); h |= 0; }
+    return Math.abs(h).toString(36);
+}
+
+function sha256(s) {
+    return crypto2.createHash('sha256').update(s).digest('base64').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+}
+
 function getDeviceID(req) {
     const id = req.headers['x-device-id'] || '';
-    if (id && !id.startsWith('d_') && !id.startsWith('d2_')) return '';
+    if (id && !id.startsWith('d_') && !id.startsWith('d2_') && !id.startsWith('d3_')) return '';
     if (id && id.length < 6) return '';
     return id;
+}
+
+// Validate device signals: compute hash and compare with device ID
+function validateDeviceSignals(req) {
+    const signals = req.headers['x-device-signals'];
+    if (!signals || signals.length < 10) return { valid: false, reason: 'signals missing' };
+    const id = req.headers['x-device-id'] || '';
+    if (!id) return { valid: false, reason: 'no id' };
+
+    const prefix = id.slice(0, 3);
+    const claimedHash = id.slice(3);
+
+    if (prefix === 'd3_') {
+        const computedHash = sha256(signals);
+        if (computedHash !== claimedHash) return { valid: false, reason: 'hash mismatch' };
+        return { valid: true, reason: '' };
+    }
+
+    if (prefix === 'd2_') {
+        const computedHash = hashStr(signals);
+        if (computedHash !== claimedHash) return { valid: false, reason: 'hash mismatch (d2)' };
+        return { valid: true, reason: '' };
+    }
+
+    if (prefix === 'd_') {
+        const computedHash = hashStr(signals.slice(0, 500));
+        if (computedHash !== claimedHash) return { valid: false, reason: 'hash mismatch (d)' };
+        return { valid: true, reason: '' };
+    }
+
+    return { valid: false, reason: 'unknown prefix' };
 }
 
 // --- IP + DEVICE BAN MIDDLEWARE ---
@@ -187,6 +230,20 @@ app.use(async (req, res, next) => {
             const dban = blockedDevices[deviceId];
             if (dban && dban.until > Date.now()) {
                 return res.status(403).json({ error: 'вы забанены', reason: dban.reason || 'без причины', deviceId });
+            }
+
+            // signal validation: catch forged device IDs
+            const sv = validateDeviceSignals(req);
+            if (!sv.valid && deviceId.startsWith('d3_')) {
+                const strikes = (await kv.get('signalStrike:' + ip)) || 0;
+                const newStrikes = strikes + 1;
+                await kv.set('signalStrike:' + ip, newStrikes, { ex: 86400 });
+                if (newStrikes >= 3) {
+                    const banned = (await kv.get('blockedIPs')) || {};
+                    banned[ip] = { until: Date.now() + 86400000, reason: 'автобан: подделка deviceID' };
+                    await kv.set('blockedIPs', banned);
+                    return res.status(403).json({ error: 'вы забанены', reason: 'Обнаружена подделка deviceID', deviceId });
+                }
             }
 
             const devicesPerIP = (await kv.get('devicesPerIP:' + ip)) || {};
