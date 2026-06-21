@@ -87,6 +87,9 @@ async function getPosts() {
 }
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+if (!ADMIN_PASSWORD) {
+    console.error('ADMIN_PASSWORD not set — admin login disabled');
+}
 
 // --- RATE LIMITER (in-memory) ---
 
@@ -776,6 +779,12 @@ app.get('/rss', async (req, res) => {
         console.error('/rss error:', e);
         res.status(500).send('RSS error');
     }
+});
+
+// --- GLOBAL ERROR HANDLER ---
+app.use((err, req, res, next) => {
+    console.error('Unhandled error:', err);
+    res.status(500).json({ error: 'Internal error' });
 });
 
 module.exports = app;
