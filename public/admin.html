@@ -138,6 +138,11 @@
                 </select>
                 <button id="ban-btn">забанить</button>
             </div>
+            <div class="ban-form" style="margin-top:8px;">
+                <input id="unban-ip" placeholder="IP для разбана">
+                <button id="unban-ip-btn" class="del-btn">разбанить</button>
+                <span id="unban-ip-status" style="color:#666;font-size:12px;margin-left:8px;"></span>
+            </div>
             <div id="bans-list"></div>
         </div>
 
@@ -154,6 +159,11 @@
                     <option value="0">навсегда</option>
                 </select>
                 <button id="ban-device-btn">забанить</button>
+            </div>
+            <div class="ban-form" style="margin-top:8px;">
+                <input id="unban-device-id" placeholder="Device ID для разбана">
+                <button id="unban-device-btn" class="del-btn">разбанить</button>
+                <span id="unban-device-status" style="color:#666;font-size:12px;margin-left:8px;"></span>
             </div>
             <div id="devices-list"></div>
             <p style="color:#555;font-size:12px;margin-top:12px;">узнать deviceId юзера: он возвращается в ответе при бане (403) или спроси у юзера — открой F12 → localStorage → ключ <code style="background:#111;padding:1px 4px;">_did</code><br>твой текущий deviceId: <span id="my-device-id" style="color:var(--accent);font-size:11px;"></span></p>
@@ -531,6 +541,22 @@
             const until = dur > 0 ? Date.now() + dur : 0;
             api('/api/admin/ban-device', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId, reason, until }) })
                 .then(() => { document.getElementById('ban-device-id').value = ''; document.getElementById('ban-device-reason').value = ''; loadDeviceBans(); loadStats(); });
+        });
+
+        document.getElementById('unban-ip-btn').addEventListener('click', () => {
+            const ip = document.getElementById('unban-ip').value.trim();
+            if (!ip) return;
+            api('/api/admin/ban/' + encodeURIComponent(ip), { method: 'DELETE' })
+                .then(() => { document.getElementById('unban-ip').value = ''; document.getElementById('unban-ip-status').textContent = '✅ разбанен'; loadBans(); loadStats(); })
+                .catch(() => { document.getElementById('unban-ip-status').textContent = '❌ ошибка'; });
+        });
+
+        document.getElementById('unban-device-btn').addEventListener('click', () => {
+            const deviceId = document.getElementById('unban-device-id').value.trim();
+            if (!deviceId) return;
+            api('/api/admin/ban-device/' + encodeURIComponent(deviceId), { method: 'DELETE' })
+                .then(() => { document.getElementById('unban-device-id').value = ''; document.getElementById('unban-device-status').textContent = '✅ разбанен'; loadDeviceBans(); loadStats(); })
+                .catch(() => { document.getElementById('unban-device-status').textContent = '❌ ошибка'; });
         });
 
         document.querySelectorAll('.tab-btn').forEach(btn => {
