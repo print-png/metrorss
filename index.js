@@ -299,7 +299,7 @@ app.use(async (req, res, next) => {
                 const strikes = (await kv.get('signalStrike:' + ip)) || 0;
                 const newStrikes = strikes + 1;
                 await kv.set('signalStrike:' + ip, newStrikes, { ex: 86400 });
-                if (newStrikes >= 3) {
+                if (newStrikes >= 20) {
                     const banned = await getBlockedIPs();
                     banned[ip] = { until: Date.now() + 86400000, reason: 'автобан: подделка deviceID' };
                     await kv.set('blockedIPs', banned);
