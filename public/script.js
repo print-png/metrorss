@@ -68,7 +68,9 @@ function getSignalString() {
         screen.pixelDepth || '',
         (screen.orientation ? screen.orientation.type : '') || '',
         (navigator.plugins ? navigator.plugins.length : '') || '',
-        navigator.productSub || ''
+                navigator.productSub || '',
+                (navigator.userAgent.match(/Android\s[\d.]+/)?.[0]) || '',
+                navigator.userAgentData?.platform || ''
     ];
     return parts.join('|');
 }
