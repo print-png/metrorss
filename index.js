@@ -83,14 +83,40 @@ function escapeXml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&apos;').replace(/"/g, '&quot;');
 }
 
+const postCache = { data: null, at: 0, ttl: 8000 };
+
 async function getPosts() {
+    const now = Date.now();
+    if (postCache.data && now - postCache.at < postCache.ttl) return postCache.data;
     try {
         const posts = await kv.get('posts');
-        return Array.isArray(posts) ? posts : [];
+        postCache.data = Array.isArray(posts) ? posts : [];
+        postCache.at = now;
+        return postCache.data;
     } catch (e) {
         console.error('KV GET error:', e);
         return [];
     }
+}
+
+const banCache = { ips: null, devices: null, at: 0, ttl: 5000 };
+
+async function getBlockedIPs() {
+    const now = Date.now();
+    if (banCache.ips && now - banCache.at < banCache.ttl) return banCache.ips;
+    const data = (await kv.get('blockedIPs')) || {};
+    banCache.ips = data;
+    banCache.at = now;
+    return data;
+}
+
+async function getBlockedDevices() {
+    const now = Date.now();
+    if (banCache.devices && now - banCache.at < banCache.ttl) return banCache.devices;
+    const data = (await kv.get('blockedDevices')) || {};
+    banCache.devices = data;
+    banCache.at = now;
+    return data;
 }
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -245,7 +271,7 @@ async function isVPSIP(ip) {
 app.use(async (req, res, next) => {
     if (req.path.startsWith('/api/admin')) return next();
     try {
-        const blockedIPs = (await kv.get('blockedIPs')) || {};
+        const blockedIPs = await getBlockedIPs();
         const ip = getClientIP(req);
         const ban = blockedIPs[ip];
         if (ban && ban.until > Date.now()) {
@@ -254,7 +280,7 @@ app.use(async (req, res, next) => {
 
         const deviceId = getDeviceID(req);
         if (deviceId) {
-            const blockedDevices = (await kv.get('blockedDevices')) || {};
+            const blockedDevices = await getBlockedDevices();
             const dban = blockedDevices[deviceId];
             if (dban && dban.until > Date.now()) {
                 return res.status(403).json({ error: 'вы забанены', reason: dban.reason || 'без причины', deviceId });
@@ -267,9 +293,10 @@ app.use(async (req, res, next) => {
                 const newStrikes = strikes + 1;
                 await kv.set('signalStrike:' + ip, newStrikes, { ex: 86400 });
                 if (newStrikes >= 3) {
-                    const banned = (await kv.get('blockedIPs')) || {};
+                    const banned = await getBlockedIPs();
                     banned[ip] = { until: Date.now() + 86400000, reason: 'автобан: подделка deviceID' };
                     await kv.set('blockedIPs', banned);
+                    banCache.at = 0;
                     return res.status(403).json({ error: 'вы забанены', reason: 'Обнаружена подделка deviceID', deviceId });
                 }
             }
@@ -278,9 +305,10 @@ app.use(async (req, res, next) => {
             if (!devicesPerIP[deviceId]) {
                 devicesPerIP[deviceId] = Date.now();
                 if (Object.keys(devicesPerIP).length > 2) {
-                    const banned = (await kv.get('blockedIPs')) || {};
+                    const banned = await getBlockedIPs();
                     banned[ip] = { until: Date.now() + 86400000, reason: 'автобан: смена deviceID' };
                     await kv.set('blockedIPs', banned);
+                    banCache.at = 0;
                     return res.status(403).json({ error: 'вы забанены', reason: 'Слишком много устройств с одного IP', deviceId });
                 }
                 await kv.set('devicesPerIP:' + ip, devicesPerIP, { ex: 86400 });
@@ -326,10 +354,10 @@ function rateLimit(req, res, next) {
             entry.strike = 0;
             const until = Date.now() + 1800000;
             try {
-                kv.get('blockedIPs').then(b => {
-                    const bans = b || {};
-                    bans[ip] = { until, reason: 'автобан: DoS' };
-                    kv.set('blockedIPs', bans);
+                getBlockedIPs().then(b => {
+                    b[ip] = { until, reason: 'автобан: DoS' };
+                    kv.set('blockedIPs', b);
+                    banCache.at = 0;
                 });
             } catch(e) {}
         }
@@ -367,6 +395,7 @@ app.use((req, res, next) => {
                 if (!bans[ip]) {
                     bans[ip] = { until: Date.now() + 3600000, reason: 'автобан: флуд соединениями' };
                     kv.set('blockedIPs', bans);
+                    banCache.at = 0;
                 }
             });
         } catch(e) {}
@@ -672,7 +701,7 @@ app.get('/api/health', async (req, res) => {
 app.get('/api/posts', async (req, res) => {
     try {
         const posts = await getPosts();
-        res.json(posts);
+        res.json(posts.slice(0, 30));
     } catch (e) {
         console.error('/api/posts GET error:', e);
         res.status(500).json({ error: 'Internal error' });
@@ -723,9 +752,10 @@ app.post('/api/posts', async (req, res) => {
             const spamStrikes = (await kv.get('spamStrike:' + ip)) || 0;
             await kv.set('spamStrike:' + ip, spamStrikes + 1, { ex: 86400 });
             if (spamStrikes + 1 >= 3) {
-                const banned = (await kv.get('blockedIPs')) || {};
+                const banned = await getBlockedIPs();
                 banned[ip] = { until: Date.now() + 86400000, reason: 'автобан: спам заголовками' };
                 await kv.set('blockedIPs', banned);
+                banCache.at = 0;
             }
             return res.status(403).json({ error: 'Спам-детект' });
         }
