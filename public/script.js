@@ -196,6 +196,20 @@ function toggleComments(commentsEl) {
 
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+function showToast(m) {
+    const t = document.getElementById('toast');
+    t.textContent = m; t.classList.add('show');
+    clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function copyDeviceId(id) {
+    const t = document.createElement('textarea');
+    t.value = id; document.body.appendChild(t);
+    t.select(); document.execCommand('copy');
+    t.remove();
+    showToast('скопировано');
+}
+
 async function loadNews(silent) {
     const feed = document.getElementById('feed');
     if (!silent) feed.innerHTML = '<img class="loader-gif" src="/loader.gif">';
@@ -204,7 +218,7 @@ async function loadNews(silent) {
         if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
             if (res.status === 403 && errData.error) {
-                feed.innerHTML = '<div class="post" style="border-color:#e51400;"><p style="color:#e51400;font-weight:300;"><b>вы забанены</b>' + (errData.reason ? '<br><span style="color:#999;font-size:13px;">причина: ' + esc(errData.reason) + '</span>' : '') + (errData.deviceId ? '<br><span style="color:#555;font-size:11px;">device: ' + esc(errData.deviceId) + ' <span style="cursor:pointer;color:var(--accent);text-decoration:underline;" onclick="var t=document.createElement(\'textarea\');t.value=\'' + esc(errData.deviceId) + '\';document.body.appendChild(t);t.select();document.execCommand(\'copy\');t.remove();this.textContent=\'скопировано\'">копировать</span></span>' : '') + '</p></div>';
+                feed.innerHTML = '<div class="post" style="border-color:#e51400;"><p style="color:#e51400;font-weight:300;"><b>вы забанены</b>' + (errData.reason ? '<br><span style="color:#999;font-size:13px;">причина: ' + esc(errData.reason) + '</span>' : '') + (errData.deviceId ? '<br><span style="color:#555;font-size:11px;">device: ' + esc(errData.deviceId) + ' <button class="copy-btn" onclick="copyDeviceId(\'' + esc(errData.deviceId) + '\')">📋 копировать</button></span>' : '') + '</p></div>';
                 return;
             }
             throw new Error('Ошибка сервера (' + res.status + ')');

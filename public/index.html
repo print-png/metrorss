@@ -59,6 +59,10 @@
         .tab-btn { background: none; border: none; color: #666; padding: 10px 20px; font-size: 15px; font-family: inherit; font-weight: 300; cursor: pointer; text-transform: lowercase; transition: all 0.2s; border-bottom: 2px solid transparent; margin-bottom: -2px; }
         .tab-btn:hover { color: #aaa; }
         .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .copy-btn { background:none; border:1px solid var(--accent); color:var(--accent); padding:1px 8px; font-size:11px; cursor:pointer; font-family:inherit; transition:all 0.2s; border-radius:3px; vertical-align:middle; }
+        .copy-btn:hover { background:var(--accent); color:#fff; }
+        .toast { position:fixed; bottom:60px; left:50%; transform:translateX(-50%); background:var(--accent); color:#fff; padding:10px 24px; font-size:14px; border-radius:4px; opacity:0; transition:opacity 0.3s ease; pointer-events:none; z-index:999; }
+        .toast.show { opacity:1; }
     </style>
 </head>
 <body>
@@ -83,6 +87,7 @@
         <button class="tab-btn" data-feed="liked">мои лайки</button>
     </div>
     <div id="feed"></div>
+    <div class="toast" id="toast"></div>
     <script src="/script.js"></script>
 </body>
 </html>
