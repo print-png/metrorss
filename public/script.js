@@ -197,36 +197,23 @@ function toggleComments(commentsEl) {
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function copyDeviceId(id) {
-    function done() {
-        let toast = document.getElementById('toast');
-        if (!toast) {
-            toast = document.createElement('div');
-            toast.id = 'toast';
-            toast.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:#744da9;color:#fff;padding:10px 24px;font-size:14px;border-radius:4px;opacity:0;z-index:999;pointer-events:none;transition:opacity 0.25s ease;';
-            document.body.appendChild(toast);
-        }
-        toast.textContent = 'скопировано';
-        toast.style.opacity = '1';
-        clearTimeout(toast._t);
-        toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+    const el = document.createElement('textarea');
+    el.value = id;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    el.remove();
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:#744da9;color:#fff;padding:10px 24px;font-size:14px;border-radius:4px;opacity:0;z-index:999;pointer-events:none;transition:opacity 0.25s ease;';
+        document.body.appendChild(toast);
     }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(id).then(done).catch(() => fallback());
-    } else {
-        fallback();
-    }
-    function fallback() {
-        const ta = document.createElement('textarea');
-        ta.value = id;
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        let ok = false;
-        try { ok = document.execCommand('copy'); } catch(e) {}
-        ta.remove();
-        if (ok) { done(); return; }
-        prompt('Скопируй deviceId вручную (Ctrl+C):', id);
-    }
+    toast.textContent = 'скопировано';
+    toast.style.opacity = '1';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
 }
 
 async function loadNews(silent) {
@@ -237,7 +224,7 @@ async function loadNews(silent) {
         if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
             if (res.status === 403 && errData.error) {
-                feed.innerHTML = '<div class="post" style="border-color:#e51400;"><p style="color:#e51400;font-weight:300;"><b>вы забанены</b>' + (errData.reason ? '<br><span style="color:#999;font-size:13px;">причина: ' + esc(errData.reason) + '</span>' : '') + (errData.deviceId ? '<br><span style="color:#555;font-size:11px;">device: ' + esc(errData.deviceId) + ' <button class="copy-btn" onclick="copyDeviceId(\'' + esc(errData.deviceId) + '\')">📋 копировать</button></span>' : '') + '</p></div>';
+                feed.innerHTML = '<div class="post" style="border-color:#e51400;"><p style="color:#e51400;font-weight:300;"><b>вы забанены</b>' + (errData.reason ? '<br><span style="color:#999;font-size:13px;">причина: ' + esc(errData.reason) + '</span>' : '') + (errData.deviceId ? '<br><span style="color:#555;font-size:11px;">device: ' + esc(errData.deviceId) + ' <button class="copy-btn" onclick="(function(){var d=\'' + esc(errData.deviceId) + '\',t=document.createElement(\'textarea\');t.value=d;document.body.appendChild(t);t.select();document.execCommand(\'copy\');t.remove();var to=document.getElementById(\'toast\');if(!to){to=document.createElement(\'div\');to.id=\'toast\';to.style.cssText=\'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);background:#744da9;color:#fff;padding:10px 24px;font-size:14px;border-radius:4px;opacity:0;z-index:999;pointer-events:none;transition:opacity 0.25s ease;\';document.body.appendChild(to)}to.textContent=\'скопировано\';to.style.opacity=\'1\';clearTimeout(to._t);to._t=setTimeout(function(){to.style.opacity=\'0\'},2000)})()">📋 копировать</button></span>' : '') + '</p></div>';
                 return;
             }
             throw new Error('Ошибка сервера (' + res.status + ')');
