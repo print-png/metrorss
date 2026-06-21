@@ -212,6 +212,26 @@ function validateDeviceSignals(req) {
     return { valid: false, reason: 'unknown prefix' };
 }
 
+// --- VPS/VDS BLOCK ---
+
+const vpsCache = new Map();
+
+async function isVPSIP(ip) {
+    if (vpsCache.has(ip)) return vpsCache.get(ip);
+    try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 3000);
+        const res = await fetch('http://ip-api.com/json/' + ip + '?fields=hosting', { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (!res.ok) return false;
+        const data = await res.json();
+        const r = data.hosting === true;
+        vpsCache.set(ip, r);
+        setTimeout(() => vpsCache.delete(ip), 86400000);
+        return r;
+    } catch (e) { return false; }
+}
+
 // --- IP + DEVICE BAN MIDDLEWARE ---
 
 app.use(async (req, res, next) => {
@@ -672,6 +692,10 @@ app.post('/api/posts', async (req, res) => {
 
         if (await containsBanWords(cleanTitle) || await containsBanWords(cleanText)) {
             return res.status(403).json({ error: 'Forbidden words detected' });
+        }
+
+        if (await isVPSIP(ip)) {
+            return res.status(403).json({ error: 'С VDS/VPS постить нельзя' });
         }
 
         const spamTokens = cleanTitle.split(/\s+/).filter(t => t.length >= 3 && /^@?[a-zA-Z0-9]+$/.test(t));
