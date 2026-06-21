@@ -179,6 +179,7 @@
 
     <script>
         let token = localStorage.getItem('adminToken');
+        function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
         function api(path, opts = {}) {
             opts.headers = opts.headers || {};
@@ -264,8 +265,8 @@
                 el.innerHTML = posts.map(p => `
                     <div class="post-item">
                         <div class="info">
-                            <div class="title">${p.title || 'без заголовка'}</div>
-                            <div class="meta">${p.text}… &middot; ${new Date(p.date).toLocaleDateString('ru')} &middot; ❤ ${p.likes} &middot; 💬 ${p.commentsCount} ${p.ip ? '<span class="label-badge ip" title="IP">' + p.ip + '</span>' : ''} ${p.deviceId ? '<span class="label-badge device" title="deviceId">' + p.deviceId + '</span>' : ''}</div>
+                            <div class="title">${esc(p.title || 'без заголовка')}</div>
+                            <div class="meta">${esc(p.text)}… &middot; ${new Date(p.date).toLocaleDateString('ru')} &middot; ❤ ${p.likes} &middot; 💬 ${p.commentsCount} ${p.ip ? '<span class="label-badge ip" title="IP">' + esc(p.ip) + '</span>' : ''} ${p.deviceId ? '<span class="label-badge device" title="deviceId">' + esc(p.deviceId) + '</span>' : ''}</div>
                         </div>
                         <div class="post-actions">
                             ${p.ip ? '<button class="ban-btn quick-ban-btn" data-ip="' + p.ip + '" title="забанить IP">🔨 IP</button>' : ''}
@@ -307,10 +308,10 @@
                     return `
                         <div class="ban-item">
                             <div class="info">
-                                <div class="ip">${ip}</div>
-                                <div class="reason">${b.reason || 'без причины'} &middot; ${untilStr}</div>
+                                <div class="ip">${esc(ip)}</div>
+                                <div class="reason">${esc(b.reason || 'без причины')} &middot; ${untilStr}</div>
                             </div>
-                            <button class="unban-btn" data-ip="${ip}">разбанить</button>
+                            <button class="unban-btn" data-ip="${esc(ip)}">разбанить</button>
                         </div>
                     `;
                 }).join('');
@@ -344,10 +345,10 @@
                     return `
                         <div class="ban-item">
                             <div class="info">
-                                <div class="ip" style="font-size:11px;word-break:break-all;">${id}</div>
-                                <div class="reason">${b.reason || 'без причины'} &middot; ${untilStr}</div>
+                                <div class="ip" style="font-size:11px;word-break:break-all;">${esc(id)}</div>
+                                <div class="reason">${esc(b.reason || 'без причины')} &middot; ${untilStr}</div>
                             </div>
-                            <button class="unban-btn" data-device="${id}">разбанить</button>
+                            <button class="unban-btn" data-device="${esc(id)}">разбанить</button>
                         </div>
                     `;
                 }).join('');
@@ -527,8 +528,8 @@
                 el.innerHTML = comments.map(c => `
                     <div class="post-item">
                         <div class="info">
-                            <div class="title" style="font-size:12px;color:var(--accent);">${c.postTitle}</div>
-                            <div class="meta">${c.text} &middot; ${new Date(c.date).toLocaleDateString('ru')}</div>
+                            <div class="title" style="font-size:12px;color:var(--accent);">${esc(c.postTitle)}</div>
+                            <div class="meta">${esc(c.text)} &middot; ${new Date(c.date).toLocaleDateString('ru')}</div>
                         </div>
                         <button class="del-btn" data-postid="${c.postId}" data-ci="${c.ci}">удалить</button>
                     </div>
@@ -571,8 +572,8 @@
                 el.innerHTML = posts.map(p => `
                     <div class="post-item">
                         <div class="info">
-                            <div class="title">${p.title || 'без заголовка'}</div>
-                            <div class="meta">${p.text}… &middot; ${new Date(p.date).toLocaleDateString('ru')} &middot; ❤ ${p.likes} &middot; 💬 ${(p.comments||[]).length} ${p.ip ? '<span class="label-badge ip">' + p.ip + '</span>' : ''} ${p.deviceId ? '<span class="label-badge device">' + p.deviceId.substring(0,20) + '…</span>' : ''}</div>
+                            <div class="title">${esc(p.title || 'без заголовка')}</div>
+                            <div class="meta">${esc(p.text)}… &middot; ${new Date(p.date).toLocaleDateString('ru')} &middot; ❤ ${p.likes} &middot; 💬 ${(p.comments||[]).length} ${p.ip ? '<span class="label-badge ip">' + esc(p.ip) + '</span>' : ''} ${p.deviceId ? '<span class="label-badge device">' + esc(p.deviceId.substring(0,20)) + '…</span>' : ''}</div>
                         </div>
                         <div class="post-actions">
                             ${p.ip ? '<button class="ban-btn" data-ip="' + p.ip + '">🔨 IP</button>' : ''}

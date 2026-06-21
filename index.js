@@ -135,8 +135,9 @@ function checkActionLimit(ip, action, max, windowMs) {
 
 function randomToken() {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    const bytes = require('crypto').randomBytes(32);
     let r = '';
-    for (let i = 0; i < 32; i++) r += chars[Math.floor(Math.random() * chars.length)];
+    for (let i = 0; i < 32; i++) r += chars[bytes[i] % chars.length];
     return r;
 }
 
@@ -222,6 +223,7 @@ setInterval(() => {
 }, 10000);
 
 function rateLimit(req, res, next) {
+    if (req.path.startsWith('/api/admin')) return next();
     const ip = getClientIP(req);
     const now = Date.now();
     let entry = reqCounts.get(ip);
@@ -253,6 +255,7 @@ app.use(rateLimit);
 
 const activeConns = new Map();
 app.use((req, res, next) => {
+    if (req.path.startsWith('/api/admin')) return next();
     const ip = getClientIP(req);
     const n = (activeConns.get(ip) || 0) + 1;
     activeConns.set(ip, n);
@@ -397,7 +400,8 @@ app.post('/api/admin/ban', adminAuth, async (req, res) => {
         const { ip, reason, until } = req.body;
         if (!ip) return res.status(400).json({ error: 'IP required' });
         const blockedIPs = (await kv.get('blockedIPs')) || {};
-        blockedIPs[ip] = { reason: reason || 'Manual ban', until: until || Date.now() + 86400000, at: Date.now() };
+        const banUntil = (!until || until > Date.now() + 864000000) ? Date.now() + 86400000 : until;
+        blockedIPs[ip] = { reason: reason || 'Manual ban', until: banUntil, at: Date.now() };
         await kv.set('blockedIPs', blockedIPs);
         res.json({ ok: true });
     } catch (e) {
@@ -432,7 +436,8 @@ app.post('/api/admin/ban-device', adminAuth, async (req, res) => {
         const { deviceId, reason, until } = req.body;
         if (!deviceId) return res.status(400).json({ error: 'deviceId required' });
         const blockedDevices = (await kv.get('blockedDevices')) || {};
-        blockedDevices[deviceId] = { reason: reason || 'Manual ban', until: until || Date.now() + 86400000, at: Date.now() };
+        const banUntil = (!until || until > Date.now() + 864000000) ? Date.now() + 86400000 : until;
+        blockedDevices[deviceId] = { reason: reason || 'Manual ban', until: banUntil, at: Date.now() };
         await kv.set('blockedDevices', blockedDevices);
         res.json({ ok: true });
     } catch (e) {
@@ -658,7 +663,7 @@ app.post('/api/posts', async (req, res) => {
         res.status(201).json(newPost);
     } catch (e) {
         console.error('/api/posts POST error:', e);
-        res.status(500).json({ error: 'Save failed: ' + e.message });
+        res.status(500).json({ error: 'Save failed' });
     }
 });
 
