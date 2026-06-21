@@ -33,7 +33,7 @@ app.use((req, res, next) => {
 
 app.use((req, res, next) => {
     const did = req.headers['x-device-id'];
-    if (did && did.length > 64) {
+    if (did && did.length > 128) {
         return res.status(400).json({ error: 'Invalid device ID' });
     }
     const ua = req.headers['user-agent'];
@@ -204,7 +204,8 @@ function hashStr(s) {
 }
 
 function sha256(s) {
-    return crypto2.createHash('sha256').update(s).digest('base64').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    const buf = crypto2.createHash('sha256').update(s).digest();
+    return Array.from(buf).map(b => b.toString(36).padStart(2, '0')).join('').slice(0, 60);
 }
 
 function getDeviceID(req) {

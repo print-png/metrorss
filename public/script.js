@@ -9,7 +9,7 @@ function hashStr(s) {
 async function sha256(s) {
     try {
         const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
-        return Array.from(new Uint8Array(buf)).map(b => b.toString(36).padStart(2, '0')).join('');
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(36).padStart(2, '0')).join('').slice(0, 60);
     } catch(e) { return null; }
 }
 
