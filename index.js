@@ -295,13 +295,13 @@ app.use(async (req, res, next) => {
 
             // signal validation: catch forged device IDs
             const sv = validateDeviceSignals(req);
-            if (!sv.valid && deviceId.startsWith('d3_')) {
+            if (!sv.valid) {
                 const strikes = (await kv.get('signalStrike:' + ip)) || 0;
                 const newStrikes = strikes + 1;
                 await kv.set('signalStrike:' + ip, newStrikes, { ex: 86400 });
-                if (newStrikes >= 20) {
+                if (newStrikes >= 10) {
                     const banned = await getBlockedIPs();
-                    banned[ip] = { until: Date.now() + 86400000, reason: 'автобан: подделка deviceID' };
+                    banned[ip] = { until: Date.now() + 7200000, reason: 'автобан: подделка deviceID' };
                     await kv.set('blockedIPs', banned);
                     banCache.at = 0;
                     return res.status(403).json({ error: 'вы забанены', reason: 'Обнаружена подделка deviceID', deviceId });
@@ -316,9 +316,9 @@ app.use(async (req, res, next) => {
                     if (now - v > 3600000) delete devicesPerIP[k];
                 }
                 devicesPerIP[deviceId] = now;
-                if (Object.keys(devicesPerIP).length > 8) {
+                if (Object.keys(devicesPerIP).length > 12) {
                     const banned = await getBlockedIPs();
-                    banned[ip] = { until: now + 3600000, reason: 'автобан: смена deviceID' };
+                    banned[ip] = { until: now + 1800000, reason: 'автобан: смена deviceID' };
                     await kv.set('blockedIPs', banned);
                     banCache.at = 0;
                     return res.status(403).json({ error: 'вы забанены', reason: 'Слишком много устройств с одного IP', deviceId });

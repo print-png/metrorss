@@ -126,7 +126,7 @@ function getCookie(n) {
 function setCookie(n, v, days) {
     const d = new Date();
     d.setTime(d.getTime() + days * 864e5);
-    document.cookie = n + '=' + v + '; expires=' + d.toUTCString() + '; path=/; SameSite=Lax';
+    document.cookie = n + '=' + v + '; expires=' + d.toUTCString() + '; path=/; SameSite=Lax; Secure';
 }
 
 const origFetch = window.fetch;
