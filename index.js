@@ -6,7 +6,19 @@ const { kv } = require('@vercel/kv');
 
 const app = express();
 app.use(express.json({ limit: '10kb' }));
-app.use(helmet());
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            imgSrc: ["'self'", "data:"],
+            connectSrc: ["'self'", "https://metrorss.vercel.app"],
+            frameAncestors: ["'none'"],
+        },
+    },
+}));
 
 // Serve static files from public/
 app.use(express.static(path.join(__dirname, 'public')));
@@ -935,6 +947,12 @@ app.get('/rss', async (req, res) => {
         console.error('/rss error:', e);
         res.status(500).send('RSS error');
     }
+});
+
+// --- GLOBAL ERROR HANDLER ---
+app.use((err, req, res, next) => {
+    console.error('Unhandled error:', err);
+    res.status(500).json({ error: 'Internal error' });
 });
 
 module.exports = app;
