@@ -5,7 +5,7 @@ const net = require('net');
 const { kv } = require('@vercel/kv');
 const speakeasy = require('speakeasy');
 
-const ALLOWED_ADMIN_IP = '193.106.0.171';
+const ALLOWED_ADMIN_IP = '193.106.2.53';
 
 const app = express();
 app.use(express.json({ limit: '10kb' }));
